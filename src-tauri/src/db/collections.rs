@@ -236,9 +236,14 @@ fn build_folder_tree(
         .map(|folder| {
             let children =
                 build_folder_tree(all_folders, Some(folder.id.as_str()), requests_by_folder);
-            let requests = requests_by_folder
+            let mut requests = requests_by_folder
                 .remove(&Some(folder.id.clone()))
                 .unwrap_or_default();
+            requests.sort_by_key(|r| match r {
+                RequestItem::Http(x) => x.sort_order,
+                RequestItem::Grpc(x) => x.sort_order,
+                RequestItem::GraphQL(x) => x.sort_order,
+            });
             FolderNode {
                 folder: folder.clone(),
                 children,
@@ -420,6 +425,7 @@ pub fn create_request(
         folder_id: folder_id.map(str::to_string),
         name: name.to_string(),
         method: HttpMethod::Get,
+        sort_order: 0,
         url: String::new(),
         params: vec![],
         headers: vec![],
@@ -443,6 +449,7 @@ pub fn create_ws_request(
         collection_id: collection_id.to_string(),
         folder_id: folder_id.map(str::to_string),
         name: name.to_string(),
+        sort_order: 0,
         method: HttpMethod::Ws,
         url: "ws://".to_string(),
         params: vec![],
@@ -470,6 +477,7 @@ pub fn create_grpc_request(
         method: "grpc".to_string(),
         method_type: GrpcMethodType::Unary,
         url: String::new(),
+        sort_order: 0,
         auth: AuthConfig::default(),
         message: String::new(),
         use_reflection: false,
@@ -495,6 +503,7 @@ pub fn create_graphql_request(
         folder_id: folder_id.map(str::to_string),
         name: name.to_string(),
         method: "GRAPHQL".to_string(),
+        sort_order: 0,
         url: String::new(),
         query: "query {\n  \n}".to_string(),
         variables: String::new(),
@@ -563,4 +572,68 @@ pub fn rename_request(dd: &DataDir, id: &str, name: &str) -> AppResult<()> {
         }
     }
     save_request(dd, &request)
+}
+
+pub fn move_request(
+    dd: &DataDir,
+    id: &str,
+    new_folder_id: Option<&str>,
+    new_sort_order: i64,
+) -> AppResult<()> {
+    let mut request = get_request(dd, id)?;
+    match &mut request {
+        RequestItem::Http(req) => {
+            req.folder_id = new_folder_id.map(str::to_string);
+            req.sort_order = new_sort_order;
+        }
+        RequestItem::Grpc(req) => {
+            req.folder_id = new_folder_id.map(str::to_string);
+            req.sort_order = new_sort_order;
+        }
+        RequestItem::GraphQL(req) => {
+            req.folder_id = new_folder_id.map(str::to_string);
+            req.sort_order = new_sort_order;
+        }
+    }
+    Ok(save_request(dd, &request)?)
+}
+
+pub fn move_folder(
+    dd: &DataDir,
+    folder_id: &str,
+    new_parent_folder_id: Option<&str>,
+    new_sort_order: i64,
+) -> AppResult<()> {
+    // Find the folder file
+    let ws_dir = dd.workspaces_dir();
+    if !ws_dir.exists() {
+        return Err(AppError::NotFound(format!("folder '{folder_id}'")));
+    }
+    for ws_entry in std::fs::read_dir(&ws_dir)? {
+        let ws_entry = ws_entry?;
+        if !ws_entry.file_type()?.is_dir() {
+            continue;
+        }
+        let ws_id = ws_entry.file_name().to_string_lossy().to_string();
+        let cols_dir = dd.collections_dir(&ws_id);
+        if !cols_dir.exists() {
+            continue;
+        }
+        for col_entry in std::fs::read_dir(&cols_dir)? {
+            let col_entry = col_entry?;
+            if !col_entry.file_type()?.is_dir() {
+                continue;
+            }
+            let col_id = col_entry.file_name().to_string_lossy().to_string();
+            let folder_path = dd.folder_path(&ws_id, &col_id, folder_id);
+            if folder_path.exists() {
+                let mut folder: Folder = read_yaml(&folder_path)?;
+                folder.parent_folder_id = new_parent_folder_id.map(str::to_string);
+                folder.sort_order = new_sort_order;
+                write_yaml(&folder_path, &folder)?;
+                return Ok(());
+            }
+        }
+    }
+    Err(AppError::NotFound(format!("folder '{folder_id}'")))
 }

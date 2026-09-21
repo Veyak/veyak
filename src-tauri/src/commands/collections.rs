@@ -248,3 +248,33 @@ pub async fn set_active_collection(
 ) -> AppResult<()> {
     crate::db::app_state::set_active_collection(&state.data_dir, collectionid.as_deref())
 }
+
+#[tauri::command]
+pub async fn move_request(
+    status: State<'_, AppState>,
+    requestid: String,
+    target_folder_id: Option<String>,
+    new_sort_order: i64,
+) -> AppResult<()> {
+    crate::db::collections::move_request(
+        &status.data_dir,
+        &requestid,
+        target_folder_id.as_deref(),
+        new_sort_order,
+    )
+}
+
+#[tauri::command]
+pub async fn move_folder(
+    status: State<'_, AppState>,
+    folderid: String,
+    target_folder_id: Option<String>,
+    new_sort_order: i64,
+) -> AppResult<()> {
+    crate::db::collections::move_folder(
+        &status.data_dir,
+        &folderid,
+        target_folder_id.as_deref(),
+        new_sort_order,
+    )
+}

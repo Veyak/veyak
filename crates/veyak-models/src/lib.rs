@@ -244,6 +244,8 @@ pub struct ApiRequest {
     pub collection_id: String,
     #[serde(default)]
     pub folder_id: Option<String>,
+    #[serde(default)]
+    pub sort_order: i64,
     pub name: String,
     pub method: HttpMethod,
     pub url: String,
@@ -904,7 +906,8 @@ pub struct GrpcRequest {
     #[serde(default)]
     pub folder_id: Option<String>,
     pub name: String,
-
+    #[serde(default)]
+    pub sort_order: i64,
     /// e.g. "grpc.postman-echo.com:443"
     pub url: String,
     /// e.g. "helloworld.Greeter"
@@ -978,6 +981,8 @@ pub struct GraphQlRequest {
     pub name: String,
     #[serde(default = "default_graphql_method")]
     pub method: String,
+    #[serde(default)]
+    pub sort_order: i64,
     /// The GraphQL endpoint URL
     pub url: String,
     /// The query / mutation / subscription document text
@@ -1005,6 +1010,7 @@ impl Default for GraphQlRequest {
             folder_id: None,
             name: "Untitled GraphQL".to_string(),
             method: "GRAPHQL".to_string(),
+            sort_order: 0,
             url: String::new(),
             query: String::new(),
             variables: String::new(),
