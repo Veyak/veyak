@@ -94,7 +94,6 @@ function clearAllThemeOverrides() {
   }
 }
 
-
 export interface WorkspaceStore {
   environments: EnvironmentWithVariables[];
   workspaces: Workspace[];
@@ -109,6 +108,12 @@ export interface WorkspaceStore {
   isLoadingCollectionTree: boolean;
   error: string | null;
 
+  moveItem: (
+    itemId: string,
+    itemType: "request" | "folder",
+    targetFolderId: string | null,
+    newSortOrder: number,
+  ) => Promise<void>;
   additionTypes: AdditionType[];
   fetchAdditionTypes: () => Promise<void>;
 
@@ -172,7 +177,6 @@ export interface WorkspaceStore {
   ) => Promise<void>;
   setActiveEnvironment: (id: string | null) => Promise<void>;
 
-
   // Theme Store
 
   themes: Theme[];
@@ -232,9 +236,6 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
   themeInstallError: null,
 
   isThemePickerOpen: false,
-
-
-
 
   additionTypes: [],
   fetchAdditionTypes: async () => {
@@ -551,6 +552,30 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
     }
   },
 
+  moveItem: async (
+    itemId: string,
+    itemType: "request" | "folder",
+    targetFolderId: string | null,
+    newSortOrder: number,
+  ) => {
+    const { activeCollectionId } = get();
+    if (!activeCollectionId) return;
+    set({ isLoadingCollectionTree: true });
+    try {
+      await invoke("move_item", {
+        collectionid: activeCollectionId,
+        itemid: itemId,
+        itemtype: itemType,
+        targetfolderid: targetFolderId,
+        sortorder: newSortOrder,
+      });
+      await get().fetchCollectionTree(activeCollectionId);
+    } catch (err) {
+      console.error("Error moving item:", err);
+      set({ error: String(err), isLoadingCollectionTree: false });
+    }
+  },
+
   // Folders
   createFolder: async (
     collectionId: string,
@@ -828,7 +853,7 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
     }
   },
 
-  //  Themes 
+  //  Themes
 
   applyTheme: (theme: Theme) => {
     if (!theme?.tokens) return;
@@ -907,7 +932,12 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
         activeTheme: targetTheme,
       });
 
-      if (targetTheme && !get().isInstallThemeModalOpen && !get().isThemePickerOpen && !get().previewedTheme) {
+      if (
+        targetTheme &&
+        !get().isInstallThemeModalOpen &&
+        !get().isThemePickerOpen &&
+        !get().previewedTheme
+      ) {
         get().applyTheme(targetTheme);
       }
     } catch (err) {
@@ -928,7 +958,7 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
         if (nextActive && state.activeThemeId === themeId) {
           get().applyTheme(nextActive);
           invoke("set_active_theme", { themeId: nextActive.id }).catch(
-            () => { },
+            () => {},
           );
         }
 
@@ -980,7 +1010,9 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
     });
 
     try {
-      const preview = await invoke<Theme>("fetch_theme_preview", { id: themeId });
+      const preview = await invoke<Theme>("fetch_theme_preview", {
+        id: themeId,
+      });
       set({
         pendingTheme: preview,
         isLoadingThemePreview: false,
@@ -994,7 +1026,8 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
         themeInstallError:
           typeof err === "string"
             ? err
-            : err?.message || `Failed to fetch theme "${themeId}" from registry`,
+            : err?.message ||
+              `Failed to fetch theme "${themeId}" from registry`,
       });
     }
   },
@@ -1020,9 +1053,13 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
     try {
       let installedTheme: Theme;
       if (targetTheme) {
-        installedTheme = await invoke<Theme>("save_theme", { theme: targetTheme });
+        installedTheme = await invoke<Theme>("save_theme", {
+          theme: targetTheme,
+        });
       } else {
-        installedTheme = await invoke<Theme>("install_theme", { id: idToInstall });
+        installedTheme = await invoke<Theme>("install_theme", {
+          id: idToInstall,
+        });
       }
 
       // Refresh themes list from disk
@@ -1076,7 +1113,3 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
     });
   },
 }));
-
-
-
-

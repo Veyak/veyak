@@ -250,31 +250,29 @@ pub async fn set_active_collection(
 }
 
 #[tauri::command]
-pub async fn move_request(
+pub async fn move_item(
     status: State<'_, AppState>,
     requestid: String,
+    itemtype: String,
     target_folder_id: Option<String>,
     new_sort_order: i64,
 ) -> AppResult<()> {
-    crate::db::collections::move_request(
-        &status.data_dir,
-        &requestid,
-        target_folder_id.as_deref(),
-        new_sort_order,
-    )
-}
-
-#[tauri::command]
-pub async fn move_folder(
-    status: State<'_, AppState>,
-    folderid: String,
-    target_folder_id: Option<String>,
-    new_sort_order: i64,
-) -> AppResult<()> {
-    crate::db::collections::move_folder(
-        &status.data_dir,
-        &folderid,
-        target_folder_id.as_deref(),
-        new_sort_order,
-    )
+    match itemtype.as_str() {
+        "request" => crate::db::collections::move_request(
+            &status.data_dir,
+            &requestid,
+            target_folder_id.as_deref(),
+            new_sort_order,
+        ),
+        "folder" => crate::db::collections::move_folder(
+            &status.data_dir,
+            &requestid,
+            target_folder_id.as_deref(),
+            new_sort_order,
+        ),
+        _ => Err(veyak_error::AppError::Invalid(format!(
+            "Invalid item type: {}",
+            itemtype
+        ))),
+    }
 }
