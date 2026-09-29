@@ -7,10 +7,10 @@
 ### The Blazing-Fast, Offline-First API Studio
 **A modern, lightweight open-source alternative to Postman & Insomnia — powered by Rust and Tauri 2.**
 
-[![Download](https://img.shields.io/github/v/release/iamdhakrey/veyak?style=for-the-badge&color=6366F1&label=Download)](https://github.com/iamdhakrey/veyak/releases/latest)
-[![GitHub Stars](https://img.shields.io/github/stars/iamdhakrey/veyak?style=for-the-badge&logo=github&color=FACC15)](https://github.com/iamdhakrey/veyak/stargazers)
+[![Download](https://img.shields.io/github/v/release/Veyak/veyak?style=for-the-badge&color=6366F1&label=Download)](https://github.com/Veyak/veyak/releases/latest)
+[![GitHub Stars](https://img.shields.io/github/stars/Veyak/veyak?style=for-the-badge&logo=github&color=FACC15)](https://github.com/Veyak/veyak/stargazers)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](LICENSE)
-[![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey?style=for-the-badge)](https://github.com/iamdhakrey/veyak/releases/latest)
+[![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey?style=for-the-badge)](https://github.com/Veyak/veyak/releases/latest)
 
 <p align="center">
   <a href="#download">Download</a> •
@@ -29,13 +29,13 @@
 
 ## Download
 
-Get the latest installer for your operating system from the **[Releases Page](https://github.com/iamdhakrey/veyak/releases/latest)** or the **[Official Website](https://veyak.iamdhakrey.dev/)**:
+Get the latest installer for your operating system from the **[Releases Page](https://github.com/Veyak/veyak/releases/latest)** or the **[Official Website](https://veyak.iamdhakrey.dev/)**:
 
 | Platform | Download | Format |
 | :--- | :---: | :---: |
-| **macOS** | [Download](https://github.com/iamdhakrey/veyak/releases/latest) | `.dmg` (Apple Silicon & Intel) |
-| **Windows** | [Download](https://github.com/iamdhakrey/veyak/releases/latest) | `.msi` / `.exe` installer |
-| **Linux** | [Download](https://github.com/iamdhakrey/veyak/releases/latest) | `.AppImage` / `.deb` |
+| **macOS** | [Download](https://github.com/Veyak/veyak/releases/latest) | `.dmg` (Apple Silicon & Intel) |
+| **Windows** | [Download](https://github.com/Veyak/veyak/releases/latest) | `.msi` / `.exe` installer |
+| **Linux** | [Download](https://github.com/Veyak/veyak/releases/latest) | `.AppImage` / `.deb` |
 
 > **Auto-Updates:** Veyak checks for updates automatically and updates seamlessly in-app.
 
@@ -102,14 +102,14 @@ Veyak is built from the ground up for speed, privacy, and developer ergonomics:
 
 Contributions are welcome! If you'd like to report an issue or suggest a feature:
 
-1. Check open [Issues](https://github.com/iamdhakrey/veyak/issues) or submit a new one.
-2. For code contributions, fork the repository, make your changes, and submit a [Pull Request](https://github.com/iamdhakrey/veyak/pulls).
+1. Check open [Issues](https://github.com/Veyak/veyak/issues) or submit a new one.
+2. For code contributions, fork the repository, make your changes, and submit a [Pull Request](https://github.com/Veyak/veyak/pulls).
 
 ---
 
 ## Show Your Support
 
-If you find Veyak useful, please consider giving it a **Star (⭐️)** on [GitHub](https://github.com/iamdhakrey/veyak)! It helps others discover the project.
+If you find Veyak useful, please consider giving it a **Star (⭐️)** on [GitHub](https://github.com/Veyak/veyak)! It helps others discover the project.
 
 ---
 

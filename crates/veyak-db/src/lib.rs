@@ -372,7 +372,7 @@ fn default_themes() -> Vec<Theme> {
                 "default".to_string(),
                 "violet".to_string(),
             ],
-            repository: "https://github.com/iamdhakrey/veyak".to_string(),
+            repository: "https://github.com/Veyak/veyak".to_string(),
             variant: ThemeVariant::Dark,
             tokens: ThemeTokens {
                 ui: ThemeUI {
@@ -434,7 +434,7 @@ fn default_themes() -> Vec<Theme> {
                 "default".to_string(),
                 "zinc".to_string(),
             ],
-            repository: "https://github.com/iamdhakrey/veyak".to_string(),
+            repository: "https://github.com/Veyak/veyak".to_string(),
             variant: ThemeVariant::Dark,
             tokens: ThemeTokens {
                 ui: ThemeUI {
@@ -497,7 +497,7 @@ fn default_themes() -> Vec<Theme> {
                 "neon".to_string(),
                 "high-contrast".to_string(),
             ],
-            repository: "https://github.com/iamdhakrey/veyak".to_string(),
+            repository: "https://github.com/Veyak/veyak".to_string(),
             variant: ThemeVariant::Dark,
             tokens: ThemeTokens {
                 ui: ThemeUI {
@@ -552,7 +552,7 @@ fn default_themes() -> Vec<Theme> {
             license: "MIT".to_string(),
             is_builtin: true,
             tags: vec!["dark".to_string(), "default".to_string()],
-            repository: "https://github.com/iamdhakrey/veyak".to_string(),
+            repository: "https://github.com/Veyak/veyak".to_string(),
             variant: ThemeVariant::Dark,
             id: "vscode-dark-plus".to_string(),
             name: "VS Code Dark+".to_string(),
@@ -617,7 +617,7 @@ fn default_themes() -> Vec<Theme> {
                 "default".to_string(),
                 "pastel".to_string(),
             ],
-            repository: "https://github.com/iamdhakrey/veyak".to_string(),
+            repository: "https://github.com/Veyak/veyak".to_string(),
             variant: ThemeVariant::Dark,
             tokens: ThemeTokens {
                 ui: ThemeUI {
@@ -679,7 +679,7 @@ fn default_themes() -> Vec<Theme> {
                 "default".to_string(),
                 "purple".to_string(),
             ],
-            repository: "https://github.com/iamdhakrey/veyak".to_string(),
+            repository: "https://github.com/Veyak/veyak".to_string(),
             variant: ThemeVariant::Dark,
             tokens: ThemeTokens {
                 ui: ThemeUI {
@@ -737,7 +737,7 @@ fn default_themes() -> Vec<Theme> {
             license: "MIT".to_string(),
             is_builtin: true,
             tags: vec!["light".to_string(), "default".to_string()],
-            repository: "https://github.com/iamdhakrey/veyak".to_string(),
+            repository: "https://github.com/Veyak/veyak".to_string(),
             variant: ThemeVariant::Light,
             tokens: ThemeTokens {
                 ui: ThemeUI {

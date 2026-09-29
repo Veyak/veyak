@@ -146,7 +146,7 @@ export function useAutoUpdater(): AutoUpdaterState {
       setReleaseVersion(mockData?.version || "0.6.0");
       setChangelog(
         mockData?.body ||
-        "## What's Changed\n* feat: added WebSocket TLS certificate verification config by @iamdhakrey in https://github.com/iamdhakrey/veyak/pull/55\n* feat: migrate environment selector to title bar by @iamdhakrey in https://github.com/iamdhakrey/veyak/pull/57\n* feat: full GraphQL studio support with introspection & subscriptions by @iamdhakrey in https://github.com/iamdhakrey/veyak/pull/59\n* fix(ci): auto-generate release notes and populate latest.json properly by @iamdhakrey in https://github.com/iamdhakrey/veyak/pull/60\n\n**Full Changelog**: https://github.com/iamdhakrey/veyak/compare/v0.5.0...v0.6.0"
+        "## What's Changed\n* feat: added WebSocket TLS certificate verification config by @iamdhakrey in https://github.com/Veyak/veyak/pull/55\n* feat: migrate environment selector to title bar by @iamdhakrey in https://github.com/Veyak/veyak/pull/57\n* feat: full GraphQL studio support with introspection & subscriptions by @iamdhakrey in https://github.com/Veyak/veyak/pull/59\n* fix(ci): auto-generate release notes and populate latest.json properly by @iamdhakrey in https://github.com/Veyak/veyak/pull/60\n\n**Full Changelog**: https://github.com/Veyak/veyak/compare/v0.5.0...v0.6.0"
       );
       setReleaseDate(mockData?.date || new Date().toISOString());
       setError(null);

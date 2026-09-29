@@ -45,7 +45,7 @@
   "plugins": {
     "updater": {
       "endpoints": [
-        "https://github.com/iamdhakrey/veyak/releases/latest/download/latest.json"
+        "https://github.com/Veyak/veyak/releases/latest/download/latest.json"
       ],
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEUxRkRFQkUyQTM4OTBFODkKUldTSkRvbWo0dXY5NGNLVEhMZkN3U0p6VVpNNE5xRlhteklrNzJvYWFPMEdwVTBpR09oOVM3Y0cK"
     },
