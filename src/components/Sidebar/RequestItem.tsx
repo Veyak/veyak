@@ -4,6 +4,7 @@ import { Check, Copy, Edit2, MoreHorizontal, Trash2, X } from "lucide-react";
 import { useWorkspaceStore } from "../../store/workspaceStore";
 import { useVartaStore } from "../../store/vartaStore";
 import { RequestItem as Item } from "@veyak-internal/models";
+import { useTreeDragDropContext } from "../../hooks/useTreeDragDrop";
 
 export const RequestItem: React.FC<{ request: Item }> = ({ request }) => {
   const { deleteRequest, renameRequest, cloneRequest } = useWorkspaceStore();
@@ -16,6 +17,29 @@ export const RequestItem: React.FC<{ request: Item }> = ({ request }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const menuRef = useRef<HTMLDivElement>(null);
+
+  const dnd = useTreeDragDropContext();
+  const isDragging = dnd?.draggedId === request.id;
+  const isDropTargetBefore =
+    dnd?.dropTarget?.targetId === request.id &&
+    dnd.dropTarget.position === "before";
+  const isDropTargetAfter =
+    dnd?.dropTarget?.targetId === request.id &&
+    dnd.dropTarget.position === "after";
+
+  const dragProps = dnd
+    ? dnd.getDragSourceProps(request.id, "request", {
+        disabled: Boolean(editingId),
+        parentFolderId: request.folderId,
+      })
+    : { draggable: false };
+
+  const dropProps = dnd
+    ? dnd.getDropTargetProps({
+        id: request.id,
+        isFolder: false,
+      })
+    : {};
 
   const handleRenameSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,7 +84,7 @@ export const RequestItem: React.FC<{ request: Item }> = ({ request }) => {
   }, []);
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col relative">
       {editingId === request.id ? (
         <div className="flex items-center justify-between px-2 py-1 mx-1 my-0.5 rounded-md text-sm border border-border bg-panel">
           <form
@@ -118,13 +142,28 @@ export const RequestItem: React.FC<{ request: Item }> = ({ request }) => {
         </div>
       ) : (
         <div
+          {...dragProps}
+          {...dropProps}
           // Trigger the open action when the row is clicked
           onClick={() => openRequestTab(request)}
-          className={`group flex items-center justify-between px-2 py-1.5 mx-1 my-0.5 rounded-md text-sm cursor-pointer hover:bg-panel hover:text-text-primary text-text-secondary transition-colors relative ${activeTabId === request.id
-            ? "border-2 border-primary/10"
+          className={`group flex items-center justify-between px-2 py-1.5 mx-1 my-0.5 rounded-md text-sm cursor-pointer hover:bg-panel hover:text-text-primary text-text-secondary transition-all relative select-none ${activeTabId === request.id
+            ? "border-2 border-primary/10 bg-panel/40"
             : "border border-transparent"
-            }`}
+            } ${isDragging ? "opacity-40 scale-[0.99]" : ""}`}
         >
+          {/* Top drop insertion line indicator */}
+          {isDropTargetBefore && (
+            <div className="absolute -top-[2px] left-1 right-1 h-[2px] bg-primary rounded-full z-20 pointer-events-none shadow-[0_0_6px_var(--color-primary)] animate-in fade-in duration-75">
+              <div className="absolute -left-1 -top-[3px] w-2 h-2 rounded-full bg-primary" />
+            </div>
+          )}
+
+          {/* Bottom drop insertion line indicator */}
+          {isDropTargetAfter && (
+            <div className="absolute -bottom-[2px] left-1 right-1 h-[2px] bg-primary rounded-full z-20 pointer-events-none shadow-[0_0_6px_var(--color-primary)] animate-in fade-in duration-75">
+              <div className="absolute -left-1 -top-[3px] w-2 h-2 rounded-full bg-primary" />
+            </div>
+          )}
           <div className="flex items-center gap-2.5 truncate transition-colors">
             <span
               className={`text-[10px] font-bold w-10 text-right shrink-0 ${request.type === "grpc"

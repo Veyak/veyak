@@ -166,7 +166,8 @@ pub fn get_collection_tree(
     }
 
     let folder_nodes = build_folder_tree(&folders, None, &mut requests_by_folder);
-    let root_requests = requests_by_folder.remove(&None).unwrap_or_default();
+    let mut root_requests = requests_by_folder.remove(&None).unwrap_or_default();
+    root_requests.sort_by_key(|r| r.sort_order());
 
     Ok(CollectionTree {
         collection,
@@ -214,7 +215,8 @@ pub fn get_collection_trees(dd: &DataDir, workspace_id: &str) -> AppResult<Vec<C
         }
 
         let folder_nodes = build_folder_tree(&folders, None, &mut requests_by_folder);
-        let root_requests = requests_by_folder.remove(&None).unwrap_or_default();
+        let mut root_requests = requests_by_folder.remove(&None).unwrap_or_default();
+        root_requests.sort_by_key(|r| r.sort_order());
 
         trees.push(CollectionTree {
             collection,
@@ -230,24 +232,25 @@ fn build_folder_tree(
     parent_id: Option<&str>,
     requests_by_folder: &mut HashMap<Option<String>, Vec<RequestItem>>,
 ) -> Vec<FolderNode> {
-    all_folders
+    let mut matching_folders: Vec<&Folder> = all_folders
         .iter()
         .filter(|f| f.parent_folder_id.as_deref() == parent_id)
+        .collect();
+    matching_folders.sort_by_key(|f| f.sort_order);
+
+    matching_folders
+        .into_iter()
         .map(|folder| {
             let children =
                 build_folder_tree(all_folders, Some(folder.id.as_str()), requests_by_folder);
             let mut requests = requests_by_folder
                 .remove(&Some(folder.id.clone()))
                 .unwrap_or_default();
-            requests.sort_by_key(|r| match r {
-                RequestItem::Http(x) => x.sort_order,
-                RequestItem::Grpc(x) => x.sort_order,
-                RequestItem::GraphQL(x) => x.sort_order,
-            });
+            requests.sort_by_key(|r| r.sort_order());
             FolderNode {
                 folder: folder.clone(),
                 children,
-                requests: requests,
+                requests,
             }
         })
         .collect()
@@ -580,6 +583,7 @@ pub fn move_request(
     new_folder_id: Option<&str>,
     new_sort_order: i64,
 ) -> AppResult<()> {
+    let (ws_id, col_id) = find_request_location(dd, id)?;
     let mut request = get_request(dd, id)?;
     match &mut request {
         RequestItem::Http(req) => {
@@ -595,7 +599,30 @@ pub fn move_request(
             req.sort_order = new_sort_order;
         }
     }
-    Ok(save_request(dd, &request)?)
+    save_request(dd, &request)?;
+
+    // Reindex sibling requests in the target folder/root
+    let all_requests = load_requests_for_collection(dd, &ws_id, &col_id)?;
+    let mut siblings: Vec<RequestItem> = all_requests
+        .into_iter()
+        .filter(|r| r.folder_id() == new_folder_id)
+        .collect();
+
+    siblings.sort_by_key(|r| r.sort_order());
+
+    for (idx, mut sib) in siblings.into_iter().enumerate() {
+        let expected_order = (idx as i64) * 10;
+        if sib.sort_order() != expected_order {
+            match &mut sib {
+                RequestItem::Http(r) => r.sort_order = expected_order,
+                RequestItem::Grpc(r) => r.sort_order = expected_order,
+                RequestItem::GraphQL(r) => r.sort_order = expected_order,
+            }
+            save_request(dd, &sib)?;
+        }
+    }
+
+    Ok(())
 }
 
 pub fn move_folder(
@@ -631,6 +658,24 @@ pub fn move_folder(
                 folder.parent_folder_id = new_parent_folder_id.map(str::to_string);
                 folder.sort_order = new_sort_order;
                 write_yaml(&folder_path, &folder)?;
+
+                // Reindex sibling folders in the target parent/root
+                let all_folders = load_folders_for_collection(dd, &ws_id, &col_id)?;
+                let mut siblings: Vec<Folder> = all_folders
+                    .into_iter()
+                    .filter(|f| f.parent_folder_id.as_deref() == new_parent_folder_id)
+                    .collect();
+                siblings.sort_by_key(|f| f.sort_order);
+
+                for (idx, mut sib) in siblings.into_iter().enumerate() {
+                    let expected_order = (idx as i64) * 10;
+                    if sib.sort_order != expected_order {
+                        sib.sort_order = expected_order;
+                        let sib_path = dd.folder_path(&ws_id, &col_id, &sib.id);
+                        write_yaml(&sib_path, &sib)?;
+                    }
+                }
+
                 return Ok(());
             }
         }

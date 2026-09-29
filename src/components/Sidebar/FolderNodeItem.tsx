@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import * as Icons from "lucide-react";
 import { useWorkspaceStore } from "../../store/workspaceStore";
+import { useTreeDragDropContext } from "../../hooks/useTreeDragDrop";
 
 export const FolderNodeItem: React.FC<{
   node: FolderNodeType;
@@ -32,6 +33,34 @@ export const FolderNodeItem: React.FC<{
   const [newItemName, setNewItemName] = useState("");
 
   const menuRef = useRef<HTMLDivElement>(null);
+
+  const dnd = useTreeDragDropContext();
+  const isDragging = dnd?.draggedId === node.folder.id;
+  const isDropTargetInside =
+    dnd?.dropTarget?.targetId === node.folder.id &&
+    dnd.dropTarget.position === "inside";
+  const isDropTargetBefore =
+    dnd?.dropTarget?.targetId === node.folder.id &&
+    dnd.dropTarget.position === "before";
+  const isDropTargetAfter =
+    dnd?.dropTarget?.targetId === node.folder.id &&
+    dnd.dropTarget.position === "after";
+
+  const dragProps = dnd
+    ? dnd.getDragSourceProps(node.folder.id, "folder", {
+        disabled: Boolean(editingId),
+        parentFolderId: node.folder.parentFolderId,
+      })
+    : { draggable: false };
+
+  const dropProps = dnd
+    ? dnd.getDropTargetProps({
+        id: node.folder.id,
+        isFolder: true,
+        isExpanded: isOpen,
+        onExpand: () => setIsOpen(true),
+      })
+    : {};
 
   // Make sure 'renameFolder' is exported from your store!
   const { createFolder, createRequest, deleteFolder, renameFolder, createWs, additionTypes } =
@@ -96,16 +125,35 @@ export const FolderNodeItem: React.FC<{
   };
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col relative">
       {/* Folder Row */}
       <div
-        className="group flex items-center justify-between px-1.5 py-1.5 mx-1 rounded-md text-sm text-text-secondary hover:bg-panel hover:text-text-primary cursor-pointer transition-colors relative"
+        {...dragProps}
+        {...dropProps}
+        className={`group flex items-center justify-between px-1.5 py-1.5 mx-1 rounded-md text-sm cursor-pointer transition-all relative select-none ${
+          isDropTargetInside
+            ? "bg-primary/15 ring-1 ring-primary text-primary font-medium shadow-sm"
+            : "text-text-secondary hover:bg-panel hover:text-text-primary"
+        } ${isDragging ? "opacity-40 scale-[0.99]" : ""}`}
         style={{ paddingLeft: `${level * 12 + 6}px` }}
         onClick={() => {
           // Only toggle open/close if we aren't currently renaming this folder
           if (editingId !== node.folder.id) setIsOpen(!isOpen);
         }}
       >
+        {/* Top drop insertion line indicator */}
+        {isDropTargetBefore && (
+          <div className="absolute -top-[2px] left-1 right-1 h-[2px] bg-primary rounded-full z-20 pointer-events-none shadow-[0_0_6px_var(--color-primary)] animate-in fade-in duration-75">
+            <div className="absolute -left-1 -top-[3px] w-2 h-2 rounded-full bg-primary" />
+          </div>
+        )}
+
+        {/* Bottom drop insertion line indicator */}
+        {isDropTargetAfter && (
+          <div className="absolute -bottom-[2px] left-1 right-1 h-[2px] bg-primary rounded-full z-20 pointer-events-none shadow-[0_0_6px_var(--color-primary)] animate-in fade-in duration-75">
+            <div className="absolute -left-1 -top-[3px] w-2 h-2 rounded-full bg-primary" />
+          </div>
+        )}
         {editingId === node.folder.id ? (
           // --- INLINE RENAME FORM ---
           <form

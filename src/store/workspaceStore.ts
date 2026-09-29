@@ -560,15 +560,14 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
   ) => {
     const { activeCollectionId } = get();
     if (!activeCollectionId) return;
-    set({ isLoadingCollectionTree: true });
     try {
       await invoke("move_item", {
-        collectionid: activeCollectionId,
-        itemid: itemId,
+        requestid: itemId,
         itemtype: itemType,
-        targetfolderid: targetFolderId,
-        sortorder: newSortOrder,
+        targetFolderId: targetFolderId,
+        newSortOrder: newSortOrder,
       });
+      console.log("movuded")
       await get().fetchCollectionTree(activeCollectionId);
     } catch (err) {
       console.error("Error moving item:", err);
@@ -958,7 +957,7 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
         if (nextActive && state.activeThemeId === themeId) {
           get().applyTheme(nextActive);
           invoke("set_active_theme", { themeId: nextActive.id }).catch(
-            () => {},
+            () => { },
           );
         }
 
@@ -1027,7 +1026,7 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
           typeof err === "string"
             ? err
             : err?.message ||
-              `Failed to fetch theme "${themeId}" from registry`,
+            `Failed to fetch theme "${themeId}" from registry`,
       });
     }
   },

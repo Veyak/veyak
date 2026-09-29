@@ -348,6 +348,14 @@ impl RequestItem {
             RequestItem::GraphQL(r) => r.folder_id.as_deref(),
         }
     }
+
+    pub fn sort_order(&self) -> i64 {
+        match self {
+            RequestItem::Http(r) => r.sort_order,
+            RequestItem::Grpc(r) => r.sort_order,
+            RequestItem::GraphQL(r) => r.sort_order,
+        }
+    }
 }
 
 /// Nested tree shape sent to the frontend for rendering the sidebar in
