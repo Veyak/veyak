@@ -6178,6 +6178,7 @@ dependencies = [
  "veyak-error",
  "veyak-graphql",
  "veyak-grpc",
+ "veyak-import-export",
  "veyak-models",
 ]
 
@@ -6270,6 +6271,22 @@ dependencies = [
  "tower",
  "tower-service",
  "ts-rs",
+ "veyak-error",
+ "veyak-models",
+]
+
+[[package]]
+name = "veyak-import-export"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "tempfile",
+ "url",
+ "uuid",
+ "veyak-db",
  "veyak-error",
  "veyak-models",
 ]
