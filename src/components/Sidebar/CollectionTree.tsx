@@ -5,6 +5,8 @@ import {
   Folder,
   Layers,
   FolderDown,
+  FolderInput,
+  Download,
 } from "lucide-react";
 import * as Icons from "lucide-react";
 import { FolderNodeItem } from "./FolderNodeItem";
@@ -117,6 +119,8 @@ export const CollectionsTree: React.FC = () => {
     additionTypes,
     fetchAdditionTypes,
     moveItem,
+    openImportModal,
+    openExportModal,
   } = useWorkspaceStore();
 
   // Action menu & Child Item creation for active collection
@@ -239,8 +243,15 @@ export const CollectionsTree: React.FC = () => {
               <Layers className="w-6 h-6 text-text-muted/40 mb-1" />
               <span>No collections in this workspace.</span>
               <span className="text-[11px] text-text-muted">
-                Use the top bar to create a collection.
+                Use the top bar to create a collection or import one.
               </span>
+              <button
+                onClick={() => openImportModal()}
+                className="mt-2 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/30 text-primary hover:bg-primary/20 text-xs font-medium transition-colors cursor-pointer not-italic"
+              >
+                <FolderInput className="w-3.5 h-3.5" />
+                Import Collection
+              </button>
             </div>
           ) : !activeCollectionTree ? (
             isLoadingCollectionTree ? (
@@ -272,39 +283,89 @@ export const CollectionsTree: React.FC = () => {
                   </span>
                 </div>
 
-                {/* Add item dropdown menu */}
-                <div className="relative" ref={menuRef}>
+                {/* Actions: Import, Export, Add item dropdown menu */}
+                <div className="flex items-center gap-0.5">
                   <button
-                    onClick={() => setActiveMenuOpen(!activeMenuOpen)}
+                    onClick={() => openImportModal(activeCollectionTree.collection.id)}
                     className="p-1 rounded text-text-muted hover:text-text-primary hover:bg-borderMuted cursor-pointer transition-colors"
-                    title="Add to collection..."
+                    title="Import into collection..."
                   >
-                    <Plus className="w-3.5 h-3.5" />
+                    <FolderInput className="w-3.5 h-3.5" />
                   </button>
 
-                  {activeMenuOpen && (
-                    <div className="absolute right-0 top-full mt-1 w-45 py-1 z-50 bg-panel-raised border border-border shadow-elevated rounded-md animate-in fade-in zoom-in-95 duration-100">
-                      {additionTypes.map((type) => {
-                        const IconComp = (Icons as any)[type.icon] || Icons.FilePlus;
-                        return (
-                          <button
-                            key={type.id}
-                            onClick={() => {
-                              setAddingItem({
-                                collectionId: activeCollectionTree.collection.id,
-                                type: type.id as any,
-                              });
-                              setActiveMenuOpen(false);
-                            }}
-                            className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-text-secondary hover:bg-panel hover:text-text-primary transition-colors cursor-pointer"
-                          >
-                            <IconComp className="w-3.5 h-3.5" />
-                            {type.label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
+                  <button
+                    onClick={() =>
+                      openExportModal({
+                        type: "collection",
+                        id: activeCollectionTree.collection.id,
+                      })
+                    }
+                    className="p-1 rounded text-text-muted hover:text-text-primary hover:bg-borderMuted cursor-pointer transition-colors"
+                    title="Export collection..."
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                  </button>
+
+                  <div className="relative" ref={menuRef}>
+                    <button
+                      onClick={() => setActiveMenuOpen(!activeMenuOpen)}
+                      className="p-1 rounded text-text-muted hover:text-text-primary hover:bg-borderMuted cursor-pointer transition-colors"
+                      title="Add to collection..."
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                    </button>
+
+                    {activeMenuOpen && (
+                      <div className="absolute right-0 top-full mt-1 w-45 py-1 z-50 bg-panel-raised border border-border shadow-elevated rounded-md animate-in fade-in zoom-in-95 duration-100">
+                        {additionTypes.map((type) => {
+                          const IconComp = (Icons as any)[type.icon] || Icons.FilePlus;
+                          return (
+                            <button
+                              key={type.id}
+                              onClick={() => {
+                                setAddingItem({
+                                  collectionId: activeCollectionTree.collection.id,
+                                  type: type.id as any,
+                                });
+                                setActiveMenuOpen(false);
+                              }}
+                              className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-text-secondary hover:bg-panel hover:text-text-primary transition-colors cursor-pointer"
+                            >
+                              <IconComp className="w-3.5 h-3.5" />
+                              {type.label}
+                            </button>
+                          );
+                        })}
+
+                        <div className="my-1 border-t border-border/40" />
+
+                        <button
+                          onClick={() => {
+                            openImportModal(activeCollectionTree.collection.id);
+                            setActiveMenuOpen(false);
+                          }}
+                          className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-text-secondary hover:bg-panel hover:text-text-primary transition-colors cursor-pointer"
+                        >
+                          <FolderInput className="w-3.5 h-3.5 text-primary" />
+                          Import into collection...
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            openExportModal({
+                              type: "collection",
+                              id: activeCollectionTree.collection.id,
+                            });
+                            setActiveMenuOpen(false);
+                          }}
+                          className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-text-secondary hover:bg-panel hover:text-text-primary transition-colors cursor-pointer"
+                        >
+                          <Download className="w-3.5 h-3.5 text-primary" />
+                          Export collection...
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -346,8 +407,31 @@ export const CollectionsTree: React.FC = () => {
                 {activeCollectionTree.folders.length === 0 &&
                   activeCollectionTree.requests.length === 0 &&
                   !addingItem && (
-                    <div className="px-4 py-4 text-xs text-text-muted italic">
-                      Collection is empty. Click + above to add requests or folders.
+                    <div className="px-4 py-5 text-xs text-text-muted flex flex-col items-center gap-2">
+                      <span className="italic">Collection is empty.</span>
+                      <div className="flex items-center gap-2 mt-1">
+                        <button
+                          onClick={() => {
+                            setAddingItem({
+                              collectionId: activeCollectionTree.collection.id,
+                              type: "request",
+                            });
+                          }}
+                          className="flex items-center gap-1 px-2.5 py-1 rounded bg-panel border border-border hover:bg-panel-raised text-text-primary text-xs cursor-pointer"
+                        >
+                          <Plus className="w-3 h-3" />
+                          Add Request
+                        </button>
+                        <button
+                          onClick={() =>
+                            openImportModal(activeCollectionTree.collection.id)
+                          }
+                          className="flex items-center gap-1 px-2.5 py-1 rounded bg-primary/10 border border-primary/30 hover:bg-primary/20 text-primary text-xs font-medium cursor-pointer"
+                        >
+                          <FolderInput className="w-3 h-3" />
+                          Import
+                        </button>
+                      </div>
                     </div>
                   )}
 

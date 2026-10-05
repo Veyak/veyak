@@ -15,6 +15,8 @@ import {
   Sparkles,
   Check,
   Loader2,
+  FolderInput,
+  Download,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useVartaStore } from "../../store/vartaStore";
@@ -73,6 +75,8 @@ export default function Titlebar() {
     pendingTheme,
     pendingThemeId,
     isInstallingTheme,
+    openImportModal,
+    openExportModal,
   } = useWorkspaceStore();
 
   const [activeDropdown, setActiveDropdown] = useState<
@@ -148,6 +152,45 @@ export default function Titlebar() {
           createButtonLabel="Create Workspace"
           createPlaceholder="Workspace name..."
           onCreate={(name) => createWorkspace(name)}
+          renderExtraActions={(item, closeDropdown) => (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                openExportModal({ type: "workspace", id: item.id });
+                closeDropdown();
+              }}
+              className="p-1 rounded text-text-muted hover:text-text-primary hover:bg-borderMuted cursor-pointer"
+              title="Export Workspace"
+            >
+              <Download className="w-3 h-3" />
+            </button>
+          )}
+          renderFooter={(closeDropdown) => (
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => {
+                  openImportModal();
+                  closeDropdown();
+                }}
+                className="flex items-center justify-center gap-1.5 flex-1 py-1 text-xs text-text-secondary hover:text-text-primary hover:bg-panel rounded transition-colors cursor-pointer"
+              >
+                <FolderInput className="w-3 h-3 text-primary" />
+                Import...
+              </button>
+              <button
+                onClick={() => {
+                  if (activeWorkspaceId) {
+                    openExportModal({ type: "workspace", id: activeWorkspaceId });
+                    closeDropdown();
+                  }
+                }}
+                className="flex items-center justify-center gap-1.5 flex-1 py-1 text-xs text-text-secondary hover:text-text-primary hover:bg-panel rounded transition-colors cursor-pointer"
+              >
+                <Download className="w-3 h-3 text-primary" />
+                Export...
+              </button>
+            </div>
+          )}
           isOpen={activeDropdown === "ws"}
           onOpenChange={(open) => setActiveDropdown(open ? "ws" : null)}
         />
@@ -176,6 +219,46 @@ export default function Titlebar() {
           createButtonLabel="Create Collection"
           createPlaceholder="Collection name..."
           onCreate={(name) => createCollection(name)}
+          renderExtraActions={(item, closeDropdown) => (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                openExportModal({ type: "collection", id: item.id });
+                closeDropdown();
+              }}
+              className="p-1 rounded text-text-muted hover:text-text-primary hover:bg-borderMuted cursor-pointer"
+              title="Export Collection"
+            >
+              <Download className="w-3 h-3" />
+            </button>
+          )}
+          renderFooter={(closeDropdown) => (
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => {
+                  openImportModal(activeCollectionId || undefined);
+                  closeDropdown();
+                }}
+                className="flex items-center justify-center gap-1.5 flex-1 py-1 text-xs text-text-secondary hover:text-text-primary hover:bg-panel rounded transition-colors cursor-pointer"
+              >
+                <FolderInput className="w-3 h-3 text-primary" />
+                Import...
+              </button>
+              <button
+                onClick={() => {
+                  if (activeCollectionId) {
+                    openExportModal({ type: "collection", id: activeCollectionId });
+                    closeDropdown();
+                  }
+                }}
+                disabled={!activeCollectionId}
+                className="flex items-center justify-center gap-1.5 flex-1 py-1 text-xs text-text-secondary hover:text-text-primary hover:bg-panel rounded transition-colors cursor-pointer disabled:opacity-40"
+              >
+                <Download className="w-3 h-3 text-primary" />
+                Export...
+              </button>
+            </div>
+          )}
           isOpen={activeDropdown === "col"}
           onOpenChange={(open) => setActiveDropdown(open ? "col" : null)}
         />
@@ -215,6 +298,33 @@ export default function Titlebar() {
             >
               <SlidersHorizontal className="w-3 h-3" />
             </button>
+          )}
+          renderFooter={(closeDropdown) => (
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => {
+                  openImportModal();
+                  closeDropdown();
+                }}
+                className="flex items-center justify-center gap-1.5 flex-1 py-1 text-xs text-text-secondary hover:text-text-primary hover:bg-panel rounded transition-colors cursor-pointer"
+              >
+                <FolderInput className="w-3 h-3 text-primary" />
+                Import...
+              </button>
+              <button
+                onClick={() => {
+                  if (activeEnvironmentId) {
+                    openExportModal({ type: "environment", id: activeEnvironmentId });
+                    closeDropdown();
+                  }
+                }}
+                disabled={!activeEnvironmentId}
+                className="flex items-center justify-center gap-1.5 flex-1 py-1 text-xs text-text-secondary hover:text-text-primary hover:bg-panel rounded transition-colors cursor-pointer disabled:opacity-40"
+              >
+                <Download className="w-3 h-3 text-primary" />
+                Export...
+              </button>
+            </div>
           )}
           createButtonLabel="Create Environment"
           createPlaceholder="Environment name..."
