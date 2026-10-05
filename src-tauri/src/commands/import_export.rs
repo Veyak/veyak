@@ -52,12 +52,7 @@ pub async fn export_collection(
     collectionid: String,
     format: ExportFormat,
 ) -> AppResult<String> {
-    veyak_import_export::export_collection(
-        &state.data_dir,
-        &workspaceid,
-        &collectionid,
-        format,
-    )
+    veyak_import_export::export_collection(&state.data_dir, &workspaceid, &collectionid, format)
 }
 
 #[tauri::command]
@@ -66,11 +61,7 @@ pub async fn export_workspace(
     workspaceid: String,
     format: ExportFormat,
 ) -> AppResult<String> {
-    veyak_import_export::export_workspace(
-        &state.data_dir,
-        &workspaceid,
-        format,
-    )
+    veyak_import_export::export_workspace(&state.data_dir, &workspaceid, format)
 }
 
 #[tauri::command]
@@ -80,10 +71,5 @@ pub async fn export_environment(
     environmentid: String,
     format: ExportFormat,
 ) -> AppResult<String> {
-    veyak_import_export::export_environment(
-        &state.data_dir,
-        &workspaceid,
-        &environmentid,
-        format,
-    )
+    veyak_import_export::export_environment(&state.data_dir, &workspaceid, &environmentid, format)
 }

@@ -3,7 +3,11 @@ use serde_json::Value;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct YaakExport {
-    #[serde(rename = "yaakSchema", alias = "YaakSchema", default = "default_yaak_schema")]
+    #[serde(
+        rename = "yaakSchema",
+        alias = "YaakSchema",
+        default = "default_yaak_schema"
+    )]
     pub yaak_schema: i64,
     #[serde(default)]
     pub timestamp: Option<String>,

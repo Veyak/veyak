@@ -11,7 +11,7 @@ pub use persister::persist_import_data;
 pub use types::*;
 
 use std::path::Path;
-use veyak_db::{read_yaml, read_yaml_vec, DataDir};
+use veyak_db::{DataDir, read_yaml, read_yaml_vec};
 use veyak_error::{AppError, AppResult};
 use veyak_models::{
     Collection, Environment, EnvironmentVariable, EnvironmentWithVariables, ExportFormat, Folder,
@@ -109,18 +109,12 @@ pub fn export_collection(
             &requests,
             Some(&env_refs),
         ),
-        ExportFormat::Yaak => yaak::export_collection_as_yaak(
-            &collection,
-            &folders,
-            &requests,
-            Some(&env_refs),
-        ),
-        ExportFormat::Veyak => veyak::export_collection_as_veyak(
-            &collection,
-            &folders,
-            &requests,
-            Some(&env_refs),
-        ),
+        ExportFormat::Yaak => {
+            yaak::export_collection_as_yaak(&collection, &folders, &requests, Some(&env_refs))
+        }
+        ExportFormat::Veyak => {
+            veyak::export_collection_as_veyak(&collection, &folders, &requests, Some(&env_refs))
+        }
     }
 }
 

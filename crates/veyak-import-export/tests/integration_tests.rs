@@ -348,7 +348,10 @@ fn test_yaak_import() {
         assert_eq!(h.method, HttpMethod::Get);
         assert_eq!(h.auth.auth_type, AuthType::Basic);
         assert_eq!(
-            h.auth.basic.as_ref().map(|b| (b.username.as_str(), b.password.as_str())),
+            h.auth
+                .basic
+                .as_ref()
+                .map(|b| (b.username.as_str(), b.password.as_str())),
             Some(("user", "secretpassword"))
         );
         assert_eq!(h.headers[0].key, "X-Client");
@@ -403,7 +406,10 @@ fn test_persisting_to_datadir_and_exporting() {
 
     // List collections to verify
     let cols_dir = dd.collections_dir(ws_id);
-    let entries: Vec<_> = std::fs::read_dir(&cols_dir).unwrap().map(|e| e.unwrap()).collect();
+    let entries: Vec<_> = std::fs::read_dir(&cols_dir)
+        .unwrap()
+        .map(|e| e.unwrap())
+        .collect();
     assert_eq!(entries.len(), 1);
     let col_id = entries[0].file_name().to_string_lossy().to_string();
 
@@ -443,7 +449,8 @@ fn test_persisting_to_datadir_and_exporting() {
     assert_eq!(env_summary.environments_count, 1);
 
     let envs_path = dd.environments_path(ws_id);
-    let envs: Vec<veyak_models::EnvironmentWithVariables> = veyak_db::read_yaml_vec(&envs_path).unwrap();
+    let envs: Vec<veyak_models::EnvironmentWithVariables> =
+        veyak_db::read_yaml_vec(&envs_path).unwrap();
     let env_id = &envs[0].environment.id;
 
     let exported_env = export_environment(&dd, ws_id, env_id, ExportFormat::Postman).unwrap();

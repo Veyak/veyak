@@ -9,8 +9,8 @@ use veyak_models::{
 
 use crate::types::{ImportData, ImportedCollection, ImportedEnvironment, ImportedFolder};
 use crate::yaak::models::{
-    YaakBodyUnion, YaakEnvironment, YaakExport, YaakGrpcRequest, YaakHttpRequest,
-    YaakResourceItem, YaakResourceObject, YaakResourcesUnion,
+    YaakBodyUnion, YaakEnvironment, YaakExport, YaakGrpcRequest, YaakHttpRequest, YaakResourceItem,
+    YaakResourceObject, YaakResourcesUnion,
 };
 
 pub fn import_yaak(content: &str) -> AppResult<ImportData> {
@@ -72,7 +72,10 @@ fn import_yaak_object(obj: YaakResourceObject) -> AppResult<ImportData> {
     });
 
     for (idx, req) in sorted_grpc.into_iter().enumerate() {
-        requests.push(convert_yaak_grpc_request(req, (requests.len() + idx) as i64));
+        requests.push(convert_yaak_grpc_request(
+            req,
+            (requests.len() + idx) as i64,
+        ));
     }
 
     let environments = obj
@@ -367,7 +370,11 @@ fn convert_yaak_auth(auth_val: Option<&serde_json::Value>, auth_type: Option<&st
                 .and_then(|v| v.as_str())
                 .unwrap_or("")
                 .to_string();
-            let add_to = match val.get("addTo").or_else(|| val.get("in")).and_then(|a| a.as_str()) {
+            let add_to = match val
+                .get("addTo")
+                .or_else(|| val.get("in"))
+                .and_then(|a| a.as_str())
+            {
                 Some("query") => ApiKeyTarget::Query,
                 _ => ApiKeyTarget::Header,
             };

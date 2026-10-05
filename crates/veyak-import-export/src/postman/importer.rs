@@ -16,7 +16,10 @@ use crate::types::{ImportData, ImportedCollection, ImportedEnvironment, Imported
 pub fn import_postman(content: &str) -> AppResult<ImportData> {
     // Try importing as Collection
     if let Ok(collection) = serde_json::from_str::<PostmanCollection>(content) {
-        if !collection.item.is_empty() || collection.variable.is_some() || !collection.info.name.is_empty() {
+        if !collection.item.is_empty()
+            || collection.variable.is_some()
+            || !collection.info.name.is_empty()
+        {
             return import_postman_collection(collection);
         }
     }
@@ -154,13 +157,7 @@ fn process_items(
                 sort_order: idx as i64,
             });
 
-            process_items(
-                sub_items,
-                Some(&folder_id),
-                folders,
-                requests,
-                warnings,
-            );
+            process_items(sub_items, Some(&folder_id), folders, requests, warnings);
         } else if let Some(req_union) = &item.request {
             // This is a request
             let name = item
@@ -262,9 +259,8 @@ fn convert_postman_request(
     }
 
     // Check if WebSocket
-    let is_ws = method == HttpMethod::Ws
-        || url_str.starts_with("ws://")
-        || url_str.starts_with("wss://");
+    let is_ws =
+        method == HttpMethod::Ws || url_str.starts_with("ws://") || url_str.starts_with("wss://");
     let final_method = if is_ws { HttpMethod::Ws } else { method };
 
     RequestItem::Http(ApiRequest {
@@ -315,8 +311,7 @@ fn extract_url_and_params(url_opt: Option<&PostmanUrlUnion>) -> (String, Vec<Key
                     match host {
                         serde_json::Value::String(h) => reconstructed.push_str(h),
                         serde_json::Value::Array(arr) => {
-                            let parts: Vec<&str> =
-                                arr.iter().filter_map(|v| v.as_str()).collect();
+                            let parts: Vec<&str> = arr.iter().filter_map(|v| v.as_str()).collect();
                             reconstructed.push_str(&parts.join("."));
                         }
                         _ => {}
@@ -331,8 +326,7 @@ fn extract_url_and_params(url_opt: Option<&PostmanUrlUnion>) -> (String, Vec<Key
                             reconstructed.push_str(p);
                         }
                         serde_json::Value::Array(arr) => {
-                            let parts: Vec<&str> =
-                                arr.iter().filter_map(|v| v.as_str()).collect();
+                            let parts: Vec<&str> = arr.iter().filter_map(|v| v.as_str()).collect();
                             reconstructed.push('/');
                             reconstructed.push_str(&parts.join("/"));
                         }

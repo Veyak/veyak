@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use uuid::Uuid;
-use veyak_db::{read_yaml_vec, write_yaml, DataDir};
+use veyak_db::{DataDir, read_yaml_vec, write_yaml};
 use veyak_error::AppResult;
 use veyak_models::{
     Collection, Environment, EnvironmentVariable, EnvironmentWithVariables, Folder, ImportSummary,
@@ -72,7 +72,8 @@ pub fn persist_import_data(
                 .folder_id()
                 .and_then(|fid| folder_id_map.get(fid).cloned());
 
-            let updated_req = update_request_item(req, new_req_id.clone(), col_id.clone(), mapped_folder_id);
+            let updated_req =
+                update_request_item(req, new_req_id.clone(), col_id.clone(), mapped_folder_id);
             let req_path = dd.request_path(workspace_id, &col_id, &new_req_id);
             write_yaml(&req_path, &updated_req)?;
             requests_count += 1;

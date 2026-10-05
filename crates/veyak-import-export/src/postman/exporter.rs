@@ -253,7 +253,11 @@ fn convert_auth_to_postman(auth: &AuthConfig) -> Option<PostmanAuth> {
     match auth.auth_type {
         AuthType::None => None,
         AuthType::Bearer => {
-            let token = auth.bearer.as_ref().map(|b| b.token.clone()).unwrap_or_default();
+            let token = auth
+                .bearer
+                .as_ref()
+                .map(|b| b.token.clone())
+                .unwrap_or_default();
             Some(PostmanAuth {
                 auth_type: "bearer".to_string(),
                 bearer: Some(vec![PostmanAuthParam {

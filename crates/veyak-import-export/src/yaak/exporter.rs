@@ -195,17 +195,16 @@ fn convert_grpc_to_yaak(req: &GrpcRequest, ws_id: &str) -> YaakGrpcRequest {
     }
 }
 
-fn convert_auth_to_yaak(
-    auth: &AuthConfig,
-) -> (Option<serde_json::Value>, Option<String>) {
+fn convert_auth_to_yaak(auth: &AuthConfig) -> (Option<serde_json::Value>, Option<String>) {
     match auth.auth_type {
         AuthType::None => (None, None),
         AuthType::Bearer => {
-            let token = auth.bearer.as_ref().map(|b| b.token.clone()).unwrap_or_default();
-            (
-                Some(json!({ "token": token })),
-                Some("bearer".to_string()),
-            )
+            let token = auth
+                .bearer
+                .as_ref()
+                .map(|b| b.token.clone())
+                .unwrap_or_default();
+            (Some(json!({ "token": token })), Some("bearer".to_string()))
         }
         AuthType::Basic => {
             let (username, password) = auth

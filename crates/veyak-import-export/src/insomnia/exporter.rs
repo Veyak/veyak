@@ -65,10 +65,7 @@ pub fn export_collection_as_insomnia(
         for (env, vars) in envs {
             let mut data_map = serde_json::Map::new();
             for v in *vars {
-                data_map.insert(
-                    v.key.clone(),
-                    serde_json::Value::String(v.value.clone()),
-                );
+                data_map.insert(v.key.clone(), serde_json::Value::String(v.value.clone()));
             }
 
             resources.push(InsomniaResource {
@@ -232,7 +229,11 @@ fn convert_auth_to_insomnia(auth: &AuthConfig) -> InsomniaAuth {
     match auth.auth_type {
         AuthType::None => InsomniaAuth::default(),
         AuthType::Bearer => {
-            let token = auth.bearer.as_ref().map(|b| b.token.clone()).unwrap_or_default();
+            let token = auth
+                .bearer
+                .as_ref()
+                .map(|b| b.token.clone())
+                .unwrap_or_default();
             InsomniaAuth {
                 auth_type: Some("bearer".to_string()),
                 token: Some(token),

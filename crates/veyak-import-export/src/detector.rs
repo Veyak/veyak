@@ -46,7 +46,9 @@ fn detect_from_json(json: &Value) -> Option<ImportFormat> {
     }
 
     // 3. Check Insomnia export
-    if json.get("__export_format").is_some() || json.get("_type").and_then(|v| v.as_str()) == Some("export") {
+    if json.get("__export_format").is_some()
+        || json.get("_type").and_then(|v| v.as_str()) == Some("export")
+    {
         return Some(ImportFormat::Insomnia);
     }
     if let Some(res) = json.get("resources").and_then(|r| r.as_array()) {
@@ -66,7 +68,9 @@ fn detect_from_json(json: &Value) -> Option<ImportFormat> {
     }
     if let Some(values) = json.get("values").and_then(|v| v.as_array()) {
         if json.get("name").is_some()
-            && values.iter().any(|v| v.get("key").is_some() && v.get("value").is_some())
+            && values
+                .iter()
+                .any(|v| v.get("key").is_some() && v.get("value").is_some())
         {
             return Some(ImportFormat::PostmanEnvironment);
         }
