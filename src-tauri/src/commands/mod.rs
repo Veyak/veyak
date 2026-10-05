@@ -5,5 +5,6 @@ pub mod fonts;
 pub mod graphql;
 pub mod grpc;
 pub mod history;
+pub mod import_export;
 pub mod settings;
 pub mod workspaces;

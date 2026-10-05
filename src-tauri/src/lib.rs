@@ -33,6 +33,7 @@ use crate::commands::grpc;
 
 use crate::commands::fonts;
 use crate::commands::history::{clear_history, delete_history_entry, list_history};
+use crate::commands::import_export;
 
 mod commands;
 pub mod db;
@@ -289,6 +290,13 @@ pub fn run() {
             settings::fetch_theme_preview,
             settings::install_theme,
             settings::save_theme,
+            // Import / Export
+            import_export::import_data,
+            import_export::import_file,
+            import_export::detect_import_format,
+            import_export::export_collection,
+            import_export::export_workspace,
+            import_export::export_environment,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Veyak application");

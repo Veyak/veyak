@@ -24,6 +24,7 @@ veyak-db = {path= "../crates/veyak-db"}
 veyak-auth = {path= "../crates/veyak-auth"}
 veyak-grpc = {path= "../crates/veyak-grpc"}
 veyak-graphql = {path= "../crates/veyak-graphql"}
+veyak-import-export = {path= "../crates/veyak-import-export"}
 tauri = { version = "2", features = ["macos-private-api"] }
 tauri-plugin-opener = "2"
 tauri-plugin-oauth = "2"
