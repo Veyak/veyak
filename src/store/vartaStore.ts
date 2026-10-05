@@ -148,6 +148,7 @@ function blankRequest(): RequestItem {
     body: { raw: "", mode: null, formData: [], urlEncoded: [], files: [] },
     collectionId: "",
     folderId: null,
+    sortOrder: 0 as any,
   };
 }
 
