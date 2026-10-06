@@ -47,6 +47,30 @@ resources:
 ";
     assert_eq!(detect_format(insomnia_yaml), ImportFormat::Insomnia);
 
+    let insomnia_v5_yaml = "
+type: collection.insomnia.rest/5.0
+schema_version: \"5.1\"
+name: Insomnia V5 YAML
+collection: []
+";
+    assert_eq!(detect_format(insomnia_v5_yaml), ImportFormat::Insomnia);
+
+    let insomnia_v5_json = r#"{
+        "type": "collection.insomnia.rest/5.0",
+        "name": "Insomnia V5 JSON",
+        "collection": []
+    }"#;
+    assert_eq!(detect_format(insomnia_v5_json), ImportFormat::Insomnia);
+
+    let insomnia_v5_env = "
+type: environment.insomnia.rest/5.0
+name: Global Env
+environments:
+  data:
+    apiUrl: https://api.com
+";
+    assert_eq!(detect_format(insomnia_v5_env), ImportFormat::Insomnia);
+
     let yaak_json = r#"{
         "yaakSchema": 3,
         "resources": {
@@ -456,4 +480,188 @@ fn test_persisting_to_datadir_and_exporting() {
     let exported_env = export_environment(&dd, ws_id, env_id, ExportFormat::Postman).unwrap();
     assert!(exported_env.contains("Integration Env"));
     assert!(exported_env.contains("API_URL"));
+}
+
+#[test]
+fn test_insomnia_v5_import_yaml() {
+    let insomnia_v5_yaml = r#"
+type: collection.insomnia.rest/5.0
+schema_version: "5.1"
+name: My Insomnia V5 API
+meta:
+  id: col_123
+environments:
+  name: Base Environment
+  data:
+    baseUrl: https://api.example.com
+    timeout: 30
+  subEnvironments:
+    - name: Production
+      data:
+        baseUrl: https://prod.example.com
+collection:
+  - name: Authentication
+    meta:
+      id: fld_auth
+    children:
+      - name: Login
+        meta:
+          id: req_login
+        method: POST
+        url: https://api.example.com/auth/login
+        headers:
+          - name: Content-Type
+            value: application/json
+        parameters:
+          - name: redirect
+            value: /dashboard
+            disabled: false
+        authentication:
+          type: basic
+          username: admin
+          password: password123
+        body:
+          mimeType: application/json
+          text: '{"rememberMe": true}'
+  - name: Streaming
+    meta:
+      id: ws_feed
+    url: wss://stream.example.com/live
+  - name: User Greeter
+    protoMethodName: user.Greeter/SayHello
+    url: grpc.example.com:50051
+    metadata:
+      - name: Authorization
+        value: Bearer token123
+    body:
+      text: '{"name": "Alice"}'
+"#;
+
+    let import_data = parse_import_content(insomnia_v5_yaml, ImportFormat::Insomnia).unwrap();
+    assert_eq!(import_data.collections.len(), 1);
+    let col = &import_data.collections[0];
+    assert_eq!(col.name, "My Insomnia V5 API");
+    assert_eq!(col.folders.len(), 1);
+    assert_eq!(col.folders[0].name, "Authentication");
+    assert_eq!(col.requests.len(), 3);
+
+    // Verify Login request
+    let login = col
+        .requests
+        .iter()
+        .find(|r| match r {
+            RequestItem::Http(h) => h.name == "Login",
+            _ => false,
+        })
+        .unwrap();
+
+    if let RequestItem::Http(h) = login {
+        assert_eq!(h.method, HttpMethod::Post);
+        assert_eq!(h.url, "https://api.example.com/auth/login");
+        assert_eq!(h.folder_id.as_deref(), Some("fld_auth"));
+        assert_eq!(h.headers.len(), 1);
+        assert_eq!(h.headers[0].key, "Content-Type");
+        assert_eq!(h.params.len(), 1);
+        assert_eq!(h.params[0].key, "redirect");
+        assert_eq!(h.params[0].value, "/dashboard");
+        assert_eq!(h.auth.auth_type, AuthType::Basic);
+        assert_eq!(h.auth.basic.as_ref().unwrap().username, "admin");
+        assert_eq!(h.body.mode, Some(BodyMode::Json));
+    }
+
+    // Verify WS request
+    let ws = col
+        .requests
+        .iter()
+        .find(|r| match r {
+            RequestItem::Http(h) => h.name == "Streaming",
+            _ => false,
+        })
+        .unwrap();
+    if let RequestItem::Http(h) = ws {
+        assert_eq!(h.method, HttpMethod::Ws);
+    }
+
+    // Verify gRPC request
+    let grpc = col
+        .requests
+        .iter()
+        .find(|r| match r {
+            RequestItem::Grpc(g) => g.name == "User Greeter",
+            _ => false,
+        })
+        .unwrap();
+    if let RequestItem::Grpc(g) = grpc {
+        assert_eq!(g.service, "user.Greeter");
+        assert_eq!(g.method, "SayHello");
+        assert_eq!(g.metadata.len(), 1);
+        assert_eq!(g.metadata[0].key, "Authorization");
+    }
+
+    // Verify environments
+    assert_eq!(import_data.environments.len(), 2);
+    let base_env = import_data
+        .environments
+        .iter()
+        .find(|e| e.name == "Base Environment")
+        .unwrap();
+    assert_eq!(base_env.variables.len(), 2);
+    let prod_env = import_data
+        .environments
+        .iter()
+        .find(|e| e.name == "Production")
+        .unwrap();
+    assert_eq!(prod_env.variables.len(), 1);
+}
+
+#[test]
+fn test_insomnia_v5_global_environment_import() {
+    let env_yaml = r#"
+type: environment.insomnia.rest/5.0
+name: Global Settings
+environments:
+  name: Global Base
+  data:
+    apiUrl: https://global.example.com
+  subEnvironments:
+    - name: Staging
+      data:
+        apiUrl: https://staging.example.com
+"#;
+
+    let import_data = parse_import_content(env_yaml, ImportFormat::Auto).unwrap();
+    assert_eq!(import_data.collections.len(), 0);
+    assert_eq!(import_data.environments.len(), 2);
+    assert_eq!(import_data.environments[0].name, "Global Base");
+    assert_eq!(import_data.environments[1].name, "Staging");
+}
+
+#[test]
+fn test_insomnia_v5_persist_to_datadir() {
+    let tmp = tempdir().unwrap();
+    let dd = init_data_dir(tmp.path()).unwrap();
+    let ws_id = "test-ws";
+
+    let v5_yaml = r#"
+type: collection.insomnia.rest/5.0
+name: V5 Disk Collection
+environments:
+  name: V5 Env
+  data:
+    KEY: VALUE
+collection:
+  - name: Folder 1
+    meta:
+      id: fld_1
+    children:
+      - name: Req 1
+        method: GET
+        url: https://example.com/1
+"#;
+
+    let summary = import_data(&dd, ws_id, None, v5_yaml, ImportFormat::Insomnia).unwrap();
+    assert_eq!(summary.collections_count, 1);
+    assert_eq!(summary.folders_count, 1);
+    assert_eq!(summary.requests_count, 1);
+    assert_eq!(summary.environments_count, 1);
 }

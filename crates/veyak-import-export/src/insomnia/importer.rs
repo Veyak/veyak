@@ -9,9 +9,34 @@ use veyak_models::{
 };
 
 use crate::insomnia::models::{InsomniaAuth, InsomniaBody, InsomniaExport, InsomniaResource};
+use crate::insomnia::v5_importer::{import_insomnia_v5, is_insomnia_v5};
 use crate::types::{ImportData, ImportedCollection, ImportedEnvironment, ImportedFolder};
 
 pub fn import_insomnia(content: &str) -> AppResult<ImportData> {
+    if is_insomnia_v5(content) {
+        match import_insomnia_v5(content) {
+            Ok(data) => return Ok(data),
+            Err(e) => {
+                if let Ok(data) = import_insomnia_v4(content) {
+                    return Ok(data);
+                }
+                return Err(e);
+            }
+        }
+    }
+
+    match import_insomnia_v4(content) {
+        Ok(data) => Ok(data),
+        Err(e) => {
+            if let Ok(data) = import_insomnia_v5(content) {
+                return Ok(data);
+            }
+            Err(e)
+        }
+    }
+}
+
+pub fn import_insomnia_v4(content: &str) -> AppResult<ImportData> {
     let export: InsomniaExport = if let Ok(json) = serde_json::from_str::<InsomniaExport>(content) {
         json
     } else if let Ok(yaml) = serde_yaml::from_str::<InsomniaExport>(content) {

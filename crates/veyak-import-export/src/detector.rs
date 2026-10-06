@@ -1,5 +1,6 @@
 use serde_json::Value;
 use veyak_models::ImportFormat;
+use crate::insomnia::v5_importer::is_insomnia_v5_type_str;
 
 /// Automatically detect the import format from string content.
 pub fn detect_format(content: &str) -> ImportFormat {
@@ -45,7 +46,7 @@ fn detect_from_json(json: &Value) -> Option<ImportFormat> {
         }
     }
 
-    // 3. Check Insomnia export
+    // 3. Check Insomnia export (v4 and v5)
     if json.get("__export_format").is_some()
         || json.get("_type").and_then(|v| v.as_str()) == Some("export")
     {
@@ -60,6 +61,18 @@ fn detect_from_json(json: &Value) -> Option<ImportFormat> {
         }) {
             return Some(ImportFormat::Insomnia);
         }
+    }
+    if let Some(t) = json.get("type").and_then(|v| v.as_str()) {
+        if is_insomnia_v5_type_str(t) {
+            return Some(ImportFormat::Insomnia);
+        }
+    }
+    if json.get("schema_version").is_some()
+        && (json.get("collection").is_some()
+            || json.get("environments").is_some()
+            || json.get("routes").is_some())
+    {
+        return Some(ImportFormat::Insomnia);
     }
 
     // 4. Check Postman Environment
@@ -111,6 +124,19 @@ fn detect_from_yaml(yaml: &serde_yaml::Value) -> Option<ImportFormat> {
         }) {
             return Some(ImportFormat::Insomnia);
         }
+    }
+
+    if let Some(t) = yaml.get("type").and_then(|v| v.as_str()) {
+        if is_insomnia_v5_type_str(t) {
+            return Some(ImportFormat::Insomnia);
+        }
+    }
+    if yaml.get("schema_version").is_some()
+        && (yaml.get("collection").is_some()
+            || yaml.get("environments").is_some()
+            || yaml.get("routes").is_some())
+    {
+        return Some(ImportFormat::Insomnia);
     }
 
     if yaml.get("veyakSchema").is_some() {

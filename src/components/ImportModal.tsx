@@ -50,11 +50,11 @@ const FORMAT_OPTIONS: {
   {
     id: "insomnia",
     label: "Insomnia",
-    badge: "v4 JSON/YAML",
+    badge: "v4 / v5 JSON/YAML",
     color: "text-purple-400",
     borderColor: "border-purple-500/40",
     bgColor: "bg-purple-500/10",
-    desc: "Insomnia Export v4",
+    desc: "Insomnia Export v4 & v5",
   },
   {
     id: "yaak",
