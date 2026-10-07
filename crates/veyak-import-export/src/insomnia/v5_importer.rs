@@ -136,6 +136,7 @@ pub fn import_insomnia_v5(content: &str) -> AppResult<ImportData> {
             name: collection_name,
             folders,
             requests,
+            environments: environments.clone(),
         });
     }
 

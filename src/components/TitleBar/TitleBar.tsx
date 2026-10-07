@@ -91,9 +91,14 @@ export default function Titlebar() {
   useEffect(() => {
     if (activeWorkspaceId) {
       fetchCollections();
-      fetchEnvironments(activeWorkspaceId);
     }
-  }, [activeWorkspaceId, fetchCollections, fetchEnvironments]);
+  }, [activeWorkspaceId, fetchCollections]);
+
+  useEffect(() => {
+    if (activeCollectionId) {
+      fetchEnvironments(activeCollectionId);
+    }
+  }, [activeCollectionId, fetchEnvironments]);
 
   useEffect(() => {
     const unlisten = appWindow.onResized(async () => {
@@ -122,8 +127,9 @@ export default function Titlebar() {
   return (
     <header
       data-tauri-drag-region
-      className={`relative z-50 flex h-10 w-full select-none items-center justify-between border-b border-border/40 bg-panel/85 px-3 backdrop-blur-md ${isMac ? "pl-[78px]" : "pl-3"
-        }`}
+      className={`relative z-50 flex h-10 w-full select-none items-center justify-between border-b border-border/40 bg-panel/85 px-3 backdrop-blur-md ${
+        isMac ? "pl-[78px]" : "pl-3"
+      }`}
     >
       {/* ── Left Section: Workspace, Collection & Environment Selector Breadcrumb ── */}
       <div className="flex items-center gap-1.5" data-tauri-drag-region>
@@ -137,7 +143,9 @@ export default function Titlebar() {
 
         {/* 1. Workspace Selector */}
         <TitleBarDropdown
-          triggerIcon={<Layers className="w-3.5 h-3.5 text-primary/90 shrink-0" />}
+          triggerIcon={
+            <Layers className="w-3.5 h-3.5 text-primary/90 shrink-0" />
+          }
           triggerLabel={activeWorkspace?.name || "Workspace"}
           triggerTitle="Switch Workspace"
           triggerMaxWidth="max-w-[110px]"
@@ -180,7 +188,10 @@ export default function Titlebar() {
               <button
                 onClick={() => {
                   if (activeWorkspaceId) {
-                    openExportModal({ type: "workspace", id: activeWorkspaceId });
+                    openExportModal({
+                      type: "workspace",
+                      id: activeWorkspaceId,
+                    });
                     closeDropdown();
                   }
                 }}
@@ -200,7 +211,9 @@ export default function Titlebar() {
 
         {/* 2. Collection Selector */}
         <TitleBarDropdown
-          triggerIcon={<Library className="w-3.5 h-3.5 text-primary/80 shrink-0" />}
+          triggerIcon={
+            <Library className="w-3.5 h-3.5 text-primary/80 shrink-0" />
+          }
           triggerLabel={
             activeCollection?.name ||
             (collections.length === 0 ? "No Collections" : "Select Collection")
@@ -247,7 +260,10 @@ export default function Titlebar() {
               <button
                 onClick={() => {
                   if (activeCollectionId) {
-                    openExportModal({ type: "collection", id: activeCollectionId });
+                    openExportModal({
+                      type: "collection",
+                      id: activeCollectionId,
+                    });
                     closeDropdown();
                   }
                 }}
@@ -268,7 +284,9 @@ export default function Titlebar() {
 
         {/* 3. Environment Selector */}
         <TitleBarDropdown
-          triggerIcon={<Cloud className="w-3.5 h-3.5 text-primary/80 shrink-0" />}
+          triggerIcon={
+            <Cloud className="w-3.5 h-3.5 text-primary/80 shrink-0" />
+          }
           triggerLabel={activeEnv?.environment.name || "No Environment"}
           triggerTitle="Switch Environment"
           triggerMaxWidth="max-w-[120px]"
@@ -303,7 +321,7 @@ export default function Titlebar() {
             <div className="flex items-center gap-1">
               <button
                 onClick={() => {
-                  openImportModal();
+                  openImportModal(activeCollectionId || undefined);
                   closeDropdown();
                 }}
                 className="flex items-center justify-center gap-1.5 flex-1 py-1 text-xs text-text-secondary hover:text-text-primary hover:bg-panel rounded transition-colors cursor-pointer"
@@ -314,7 +332,10 @@ export default function Titlebar() {
               <button
                 onClick={() => {
                   if (activeEnvironmentId) {
-                    openExportModal({ type: "environment", id: activeEnvironmentId });
+                    openExportModal({
+                      type: "environment",
+                      id: activeEnvironmentId,
+                    });
                     closeDropdown();
                   }
                 }}
@@ -329,13 +350,13 @@ export default function Titlebar() {
           createButtonLabel="Create Environment"
           createPlaceholder="Environment name..."
           onCreate={async (name) => {
-            if (!activeWorkspaceId) {
+            if (!activeCollectionId) {
               console.warn(
-                "Cannot create environment: No active workspace selected.",
+                "Cannot create environment: No active collection selected.",
               );
               return;
             }
-            await createEnvironment(activeWorkspaceId, name);
+            await createEnvironment(activeCollectionId, name);
           }}
           isOpen={activeDropdown === "env"}
           onOpenChange={(open) => setActiveDropdown(open ? "env" : null)}

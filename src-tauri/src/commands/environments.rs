@@ -7,27 +7,60 @@ use veyak_models::{Environment, EnvironmentVariable, EnvironmentWithVariables};
 #[tauri::command]
 pub async fn list_environments(
     state: State<'_, AppState>,
-    workspaceid: String,
+    workspaceid: Option<String>,
+    collectionid: Option<String>,
 ) -> AppResult<Vec<EnvironmentWithVariables>> {
-    crate::db::environments::list_environments(&state.data_dir, &workspaceid)
+    let dd = &state.data_dir;
+    let col_id = match collectionid {
+        Some(cid) if !cid.is_empty() => cid,
+        _ => {
+            if let Some(ref wid) = workspaceid {
+                let cols = crate::db::collections::list_collections(dd, wid)?;
+                if let Some(first) = cols.into_iter().next() {
+                    first.id
+                } else {
+                    return Ok(Vec::new());
+                }
+            } else {
+                return Ok(Vec::new());
+            }
+        }
+    };
+    let ws_id = match workspaceid {
+        Some(wid) if !wid.is_empty() => wid,
+        _ => crate::db::collections::find_collection_workspace(dd, &col_id)?,
+    };
+    crate::db::environments::list_environments(dd, &ws_id, &col_id)
 }
 
 #[tauri::command]
 pub async fn list_variables(
     state: State<'_, AppState>,
-    workspaceid: String,
+    workspaceid: Option<String>,
+    collectionid: Option<String>,
     environmentid: String,
 ) -> AppResult<Vec<EnvironmentVariable>> {
-    crate::db::environments::list_variables(&state.data_dir, &workspaceid, &environmentid)
+    let dd = &state.data_dir;
+    let (ws_id, col_id) = match (workspaceid, collectionid) {
+        (Some(wid), Some(cid)) if !wid.is_empty() && !cid.is_empty() => (wid, cid),
+        _ => crate::db::environments::find_environment_location(dd, &environmentid)?,
+    };
+    crate::db::environments::list_variables(dd, &ws_id, &col_id, &environmentid)
 }
 
 #[tauri::command]
 pub async fn create_environment(
     state: State<'_, AppState>,
-    workspaceid: String,
+    workspaceid: Option<String>,
+    collectionid: String,
     name: String,
 ) -> AppResult<Environment> {
-    crate::db::environments::create_environment(&state.data_dir, &workspaceid, &name)
+    let dd = &state.data_dir;
+    let ws_id = match workspaceid {
+        Some(wid) if !wid.is_empty() => wid,
+        _ => crate::db::collections::find_collection_workspace(dd, &collectionid)?,
+    };
+    crate::db::environments::create_environment(dd, &ws_id, &collectionid, &name)
 }
 
 #[tauri::command]
@@ -61,7 +94,12 @@ pub async fn replace_variables(
 #[tauri::command]
 pub async fn set_active_environment(
     state: State<'_, AppState>,
+    collectionid: Option<String>,
     environmentid: Option<String>,
 ) -> AppResult<()> {
-    crate::db::app_state::set_active_environment(&state.data_dir, environmentid.as_deref())
+    crate::db::app_state::set_active_environment(
+        &state.data_dir,
+        collectionid.as_deref(),
+        environmentid.as_deref(),
+    )
 }

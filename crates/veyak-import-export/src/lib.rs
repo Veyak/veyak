@@ -93,7 +93,7 @@ pub fn export_collection(
     format: ExportFormat,
 ) -> AppResult<String> {
     let (collection, folders, requests) = load_collection_data(dd, workspace_id, collection_id)?;
-    let environments = load_environments_data(dd, workspace_id)?;
+    let environments = load_collection_environments_data(dd, workspace_id, collection_id)?;
     let env_refs: Vec<(&Environment, &[EnvironmentVariable])> = environments
         .iter()
         .map(|e| (&e.environment, e.variables.as_slice()))
@@ -101,7 +101,7 @@ pub fn export_collection(
 
     match format {
         ExportFormat::Postman => {
-            postman::export_collection_as_postman(&collection, &folders, &requests)
+            postman::export_collection_as_postman(&collection, &folders, &requests, Some(&env_refs))
         }
         ExportFormat::Insomnia => insomnia::export_collection_as_insomnia(
             &collection,
@@ -155,15 +155,16 @@ pub fn export_workspace(
         ExportFormat::Postman => {
             // For Postman, if multiple collections exist, export the first or wrap them
             if let Some((col, folders, requests)) = collections_data.first() {
-                postman::export_collection_as_postman(col, folders, requests)
+                postman::export_collection_as_postman(col, folders, requests, Some(&env_refs))
             } else {
                 let dummy = Collection {
                     id: workspace.id.clone(),
                     workspace_id: workspace.id.clone(),
                     name: workspace.name.clone(),
                     sort_order: 0,
+                    active_environment_id: None,
                 };
-                postman::export_collection_as_postman(&dummy, &[], &[])
+                postman::export_collection_as_postman(&dummy, &[], &[], None)
             }
         }
         ExportFormat::Insomnia => {
@@ -173,6 +174,7 @@ pub fn export_workspace(
                 workspace_id: workspace.id.clone(),
                 name: workspace.name.clone(),
                 sort_order: 0,
+                active_environment_id: None,
             };
             let mut all_folders = Vec::new();
             let mut all_requests = Vec::new();
@@ -193,6 +195,7 @@ pub fn export_workspace(
                 workspace_id: workspace.id.clone(),
                 name: workspace.name.clone(),
                 sort_order: 0,
+                active_environment_id: None,
             };
             let mut all_folders = Vec::new();
             let mut all_requests = Vec::new();
@@ -228,6 +231,7 @@ pub fn export_environment(
                 workspace_id: workspace_id.to_string(),
                 name: target.environment.name.clone(),
                 sort_order: 0,
+                active_environment_id: None,
             };
             let env_ref = [(&target.environment, target.variables.as_slice())];
             insomnia::export_collection_as_insomnia(&dummy_col, &[], &[], Some(&env_ref))
@@ -238,6 +242,7 @@ pub fn export_environment(
                 workspace_id: workspace_id.to_string(),
                 name: target.environment.name.clone(),
                 sort_order: 0,
+                active_environment_id: None,
             };
             let env_ref = [(&target.environment, target.variables.as_slice())];
             yaak::export_collection_as_yaak(&dummy_col, &[], &[], Some(&env_ref))
@@ -248,6 +253,7 @@ pub fn export_environment(
                 workspace_id: workspace_id.to_string(),
                 name: target.environment.name.clone(),
                 sort_order: 0,
+                active_environment_id: None,
             };
             let env_ref = [(&target.environment, target.variables.as_slice())];
             veyak::export_collection_as_veyak(&dummy_col, &[], &[], Some(&env_ref))
@@ -305,10 +311,51 @@ fn load_collection_data(
     Ok((collection, folders, requests))
 }
 
+fn load_collection_environments_data(
+    dd: &DataDir,
+    workspace_id: &str,
+    collection_id: &str,
+) -> AppResult<Vec<EnvironmentWithVariables>> {
+    let col_envs_path = dd.collection_environments_path(workspace_id, collection_id);
+    if col_envs_path.exists() {
+        return read_yaml_vec(&col_envs_path);
+    }
+    // Fallback: check legacy workspace environments path
+    let legacy_path = dd.environments_path(workspace_id);
+    if legacy_path.exists() {
+        return read_yaml_vec(&legacy_path);
+    }
+    Ok(Vec::new())
+}
+
 fn load_environments_data(
     dd: &DataDir,
     workspace_id: &str,
 ) -> AppResult<Vec<EnvironmentWithVariables>> {
-    let envs_path = dd.environments_path(workspace_id);
-    read_yaml_vec(&envs_path)
+    let mut all_envs = Vec::new();
+    let cols_dir = dd.collections_dir(workspace_id);
+    if cols_dir.exists() {
+        if let Ok(entries) = std::fs::read_dir(&cols_dir) {
+            for entry in entries.flatten() {
+                if entry.file_type().map(|t| t.is_dir()).unwrap_or(false) {
+                    let col_id = entry.file_name().to_string_lossy().to_string();
+                    let path = dd.collection_environments_path(workspace_id, &col_id);
+                    if path.exists() {
+                        if let Ok(envs) = read_yaml_vec::<EnvironmentWithVariables>(&path) {
+                            all_envs.extend(envs);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if all_envs.is_empty() {
+        let legacy_path = dd.environments_path(workspace_id);
+        if legacy_path.exists() {
+            if let Ok(envs) = read_yaml_vec::<EnvironmentWithVariables>(&legacy_path) {
+                all_envs = envs;
+            }
+        }
+    }
+    Ok(all_envs)
 }

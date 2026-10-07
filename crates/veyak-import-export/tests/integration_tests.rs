@@ -472,7 +472,7 @@ fn test_persisting_to_datadir_and_exporting() {
     let env_summary = import_data(&dd, ws_id, None, env_json, ImportFormat::Auto).unwrap();
     assert_eq!(env_summary.environments_count, 1);
 
-    let envs_path = dd.environments_path(ws_id);
+    let envs_path = dd.collection_environments_path(ws_id, &col_id);
     let envs: Vec<veyak_models::EnvironmentWithVariables> =
         veyak_db::read_yaml_vec(&envs_path).unwrap();
     let env_id = &envs[0].environment.id;

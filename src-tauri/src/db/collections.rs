@@ -13,7 +13,7 @@ use veyak_models::{
 
 /// Find which workspace a collection belongs to, by scanning all
 /// workspace dirs.  Returns `(workspace_id, collection_dir)`.
-fn find_collection_workspace(dd: &DataDir, collection_id: &str) -> AppResult<String> {
+pub fn find_collection_workspace(dd: &DataDir, collection_id: &str) -> AppResult<String> {
     let ws_dir = dd.workspaces_dir();
     if !ws_dir.exists() {
         return Err(AppError::NotFound(format!("collection '{collection_id}'")));
@@ -264,6 +264,7 @@ pub fn create_collection(dd: &DataDir, workspace_id: &str, name: &str) -> AppRes
         workspace_id: workspace_id.to_string(),
         name: name.to_string(),
         sort_order: 0,
+        active_environment_id: None,
     };
 
     let col_dir = dd.collection_dir(workspace_id, &collection.id);
@@ -305,6 +306,7 @@ pub fn clone_collection(dd: &DataDir, id: &str) -> AppResult<Collection> {
         workspace_id: ws_id.clone(),
         name: format!("{} (copy)", id),
         sort_order: 0,
+        active_environment_id: None,
     };
     let new_col_dir = dd.collection_dir(&ws_id, &new_collection.id);
     std::fs::create_dir_all(&new_col_dir)?;

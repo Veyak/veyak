@@ -9,15 +9,36 @@ use crate::postman::models::{
     PostmanAuth, PostmanAuthParam, PostmanBody, PostmanCollection, PostmanEnvValue,
     PostmanEnvironment, PostmanFormDataParam, PostmanGraphQl, PostmanHeader, PostmanInfo,
     PostmanItem, PostmanQueryParam, PostmanRequest, PostmanRequestUnion, PostmanUrl,
-    PostmanUrlEncodedParam, PostmanUrlUnion,
+    PostmanUrlEncodedParam, PostmanUrlUnion, PostmanVariable,
 };
 
 pub fn export_collection_as_postman(
     collection: &Collection,
     folders: &[Folder],
     requests: &[RequestItem],
+    environments: Option<&[(&Environment, &[EnvironmentVariable])]>,
 ) -> AppResult<String> {
     let postman_items = build_folder_items(None, folders, requests);
+
+    let variable = environments.and_then(|envs| {
+        let mut vars = Vec::new();
+        for (_env, v_list) in envs {
+            for v in *v_list {
+                vars.push(PostmanVariable {
+                    id: Some(v.id.clone()),
+                    key: Some(v.key.clone()),
+                    value: Some(serde_json::Value::String(v.value.clone())),
+                    var_type: Some(if v.is_secret {
+                        "secret".to_string()
+                    } else {
+                        "string".to_string()
+                    }),
+                    disabled: Some(!v.enabled),
+                });
+            }
+        }
+        if vars.is_empty() { None } else { Some(vars) }
+    });
 
     let postman_collection = PostmanCollection {
         info: PostmanInfo {
@@ -29,7 +50,7 @@ pub fn export_collection_as_postman(
             ),
         },
         item: postman_items,
-        variable: None,
+        variable,
         auth: None,
     };
 

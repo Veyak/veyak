@@ -34,6 +34,8 @@ pub struct VeyakExportedCollectionTree {
     pub collection: Collection,
     pub folders: Vec<Folder>,
     pub requests: Vec<RequestItem>,
+    #[serde(default)]
+    pub environments: Vec<EnvironmentWithVariables>,
 }
 
 fn default_veyak_schema() -> i64 {

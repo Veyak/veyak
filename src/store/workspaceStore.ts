@@ -4,6 +4,7 @@ import { SYNTAX_CSS_VAR_MAP, UI_CSS_VAR_MAP, Workspace } from "../types";
 import {
   Collection,
   CollectionTree,
+  Environment,
   EnvironmentVariable,
   EnvironmentWithVariables,
   AdditionType,
@@ -170,8 +171,8 @@ export interface WorkspaceStore {
   renameRequest: (id: string, name: string) => Promise<void>;
   cloneRequest: (requestId: string) => Promise<void>;
 
-  fetchEnvironments: (workspaceid: string) => Promise<void>;
-  createEnvironment: (workspaceid: string, name: string) => Promise<void>;
+  fetchEnvironments: (collectionId?: string) => Promise<void>;
+  createEnvironment: (collectionId: string, name: string) => Promise<void>;
   renameEnvironment: (environmentid: string, name: string) => Promise<void>;
   deleteEnvironment: (environmentid: string) => Promise<void>;
   saveVariables: (
@@ -395,11 +396,17 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
       if (fullState.activeWorkspaceId) {
         set({ activeWorkspaceId: fullState.activeWorkspaceId });
       }
-      if (fullState.activeEnvironmentId) {
-        set({ activeEnvironmentId: fullState.activeEnvironmentId });
-      }
       if (fullState.activeCollectionId) {
         set({ activeCollectionId: fullState.activeCollectionId });
+        const colEnv =
+          fullState.collectionActiveEnvironments?.[
+            fullState.activeCollectionId
+          ] ??
+          fullState.activeEnvironmentId ??
+          null;
+        set({ activeEnvironmentId: colEnv });
+      } else if (fullState.activeEnvironmentId) {
+        set({ activeEnvironmentId: fullState.activeEnvironmentId });
       }
       if (fullState.activeThemeId) {
         set({ activeThemeId: fullState.activeThemeId });
@@ -443,10 +450,13 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
         await invoke("set_active_collection", {
           collectionid: targetCollectionId,
         });
+        await get().fetchEnvironments(targetCollectionId);
       } else {
         set({
           activeCollectionTree: null,
           collectionTrees: [],
+          environments: [],
+          activeEnvironmentId: null,
         });
         await invoke("set_active_collection", { collectionid: null });
       }
@@ -484,8 +494,14 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
       await invoke("set_active_collection", { collectionid: id ?? null });
       if (id) {
         await get().fetchCollectionTree(id);
+        await get().fetchEnvironments(id);
       } else {
-        set({ activeCollectionTree: null, collectionTrees: [] });
+        set({
+          activeCollectionTree: null,
+          collectionTrees: [],
+          environments: [],
+          activeEnvironmentId: null,
+        });
       }
     } catch (error) {
       console.error("Failed to persist active collection:", error);
@@ -609,7 +625,7 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
         targetFolderId: targetFolderId,
         newSortOrder: newSortOrder,
       });
-      console.log("movuded")
+      console.log("movuded");
       await get().fetchCollectionTree(activeCollectionId);
     } catch (err) {
       console.error("Error moving item:", err);
@@ -804,25 +820,75 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
     }
   },
 
-  fetchEnvironments: async (workspaceid: string) => {
+  fetchEnvironments: async (collectionId?: string) => {
+    const targetColId = collectionId ?? get().activeCollectionId;
     set({ isLoading: true });
     try {
+      if (!targetColId) {
+        set({ environments: [], activeEnvironmentId: null, isLoading: false });
+        return;
+      }
+      const { activeWorkspaceId } = get();
       const envs = await invoke<EnvironmentWithVariables[]>(
         "list_environments",
-        { workspaceid },
+        { workspaceid: activeWorkspaceId || null, collectionid: targetColId },
       );
-      set({ environments: envs, isLoading: false });
-      console.log("Fetched environments:", envs);
+
+      const fullState = await invoke<ActiveState>(
+        "get_active_state_full",
+      ).catch(() => null);
+      let targetActiveEnvId: string | null = null;
+
+      if (
+        fullState?.collectionActiveEnvironments &&
+        fullState.collectionActiveEnvironments[targetColId]
+      ) {
+        const savedId = fullState.collectionActiveEnvironments[targetColId];
+        if (envs.some((e) => e.environment.id === savedId)) {
+          targetActiveEnvId = savedId;
+        }
+      }
+
+      if (!targetActiveEnvId && get().activeEnvironmentId) {
+        const currentActive = get().activeEnvironmentId;
+        if (envs.some((e) => e.environment.id === currentActive)) {
+          targetActiveEnvId = currentActive;
+        }
+      }
+
+      if (!targetActiveEnvId && envs.length > 0) {
+        targetActiveEnvId = envs[0].environment.id;
+      }
+
+      set({
+        environments: envs,
+        activeEnvironmentId: targetActiveEnvId,
+        isLoading: false,
+      });
+      console.log(
+        "Fetched environments for collection",
+        targetColId,
+        ":",
+        envs,
+      );
     } catch (error) {
       console.error("Failed to load environments:", error);
       set({ isLoading: false });
     }
   },
 
-  createEnvironment: async (workspaceid: string, name: string) => {
+  createEnvironment: async (collectionId: string, name: string) => {
+    const { activeWorkspaceId } = get();
     try {
-      await invoke("create_environment", { workspaceid, name });
-      await get().fetchEnvironments(workspaceid);
+      const created = await invoke<Environment>("create_environment", {
+        workspaceid: activeWorkspaceId || null,
+        collectionid: collectionId,
+        name,
+      });
+      await get().fetchEnvironments(collectionId);
+      if (created?.id) {
+        await get().setActiveEnvironment(created.id);
+      }
     } catch (error) {
       console.error("Failed to create environment:", error);
     }
@@ -846,15 +912,25 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
   deleteEnvironment: async (environmentid: string) => {
     try {
       await invoke("delete_environment", { environmentid });
-      set((state) => ({
-        environments: state.environments.filter(
-          (env) => env.environment.id !== environmentid,
-        ),
-        activeEnvironmentId:
-          state.activeEnvironmentId === environmentid
-            ? null
-            : state.activeEnvironmentId,
-      }));
+      const currentActive = get().activeEnvironmentId;
+      const nextEnvs = get().environments.filter(
+        (env) => env.environment.id !== environmentid,
+      );
+      const nextActiveId =
+        currentActive === environmentid
+          ? (nextEnvs[0]?.environment.id ?? null)
+          : currentActive;
+      set({
+        environments: nextEnvs,
+        activeEnvironmentId: nextActiveId,
+      });
+      if (currentActive === environmentid) {
+        const { activeCollectionId } = get();
+        await invoke("set_active_environment", {
+          collectionid: activeCollectionId ?? null,
+          environmentid: nextActiveId,
+        });
+      }
     } catch (error) {
       console.error("Failed to delete environment:", error);
     }
@@ -886,9 +962,13 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
   },
 
   setActiveEnvironment: async (id: string | null) => {
+    const { activeCollectionId } = get();
     set({ activeEnvironmentId: id });
     try {
-      await invoke("set_active_environment", { environmentid: id ?? null });
+      await invoke("set_active_environment", {
+        collectionid: activeCollectionId ?? null,
+        environmentid: id ?? null,
+      });
     } catch (error) {
       console.error("Failed to persist active environment:", error);
     }
@@ -999,7 +1079,7 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
         if (nextActive && state.activeThemeId === themeId) {
           get().applyTheme(nextActive);
           invoke("set_active_theme", { themeId: nextActive.id }).catch(
-            () => { },
+            () => {},
           );
         }
 
@@ -1068,7 +1148,7 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
           typeof err === "string"
             ? err
             : err?.message ||
-            `Failed to fetch theme "${themeId}" from registry`,
+              `Failed to fetch theme "${themeId}" from registry`,
       });
     }
   },
@@ -1185,7 +1265,11 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
     });
   },
 
-  importDataContent: async (content: string, format?: ImportFormat, targetCollectionId?: string) => {
+  importDataContent: async (
+    content: string,
+    format?: ImportFormat,
+    targetCollectionId?: string,
+  ) => {
     const { activeWorkspaceId, fetchCollections, fetchEnvironments } = get();
     if (!activeWorkspaceId) throw new Error("No active workspace selected");
 
@@ -1197,11 +1281,18 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
     });
 
     await fetchCollections();
-    await fetchEnvironments(activeWorkspaceId);
+    const targetCol = targetCollectionId || get().activeCollectionId;
+    if (targetCol) {
+      await fetchEnvironments(targetCol);
+    }
     return summary;
   },
 
-  importFileContent: async (filePath: string, format?: ImportFormat, targetCollectionId?: string) => {
+  importFileContent: async (
+    filePath: string,
+    format?: ImportFormat,
+    targetCollectionId?: string,
+  ) => {
     const { activeWorkspaceId, fetchCollections, fetchEnvironments } = get();
     if (!activeWorkspaceId) throw new Error("No active workspace selected");
 
@@ -1213,7 +1304,10 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
     });
 
     await fetchCollections();
-    await fetchEnvironments(activeWorkspaceId);
+    const targetCol = targetCollectionId || get().activeCollectionId;
+    if (targetCol) {
+      await fetchEnvironments(targetCol);
+    }
     return summary;
   },
 
@@ -1221,7 +1315,10 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
     return await invoke<ImportFormat>("detect_import_format", { content });
   },
 
-  exportCollectionContent: async (collectionId: string, format: ExportFormat) => {
+  exportCollectionContent: async (
+    collectionId: string,
+    format: ExportFormat,
+  ) => {
     const { activeWorkspaceId } = get();
     if (!activeWorkspaceId) throw new Error("No active workspace selected");
     return await invoke<string>("export_collection", {
@@ -1240,7 +1337,10 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
     });
   },
 
-  exportEnvironmentContent: async (environmentId: string, format: ExportFormat) => {
+  exportEnvironmentContent: async (
+    environmentId: string,
+    format: ExportFormat,
+  ) => {
     const { activeWorkspaceId } = get();
     if (!activeWorkspaceId) throw new Error("No active workspace selected");
     return await invoke<string>("export_environment", {

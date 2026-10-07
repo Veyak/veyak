@@ -166,6 +166,7 @@ pub fn import_insomnia_v4(content: &str) -> AppResult<ImportData> {
             name: collection_name,
             folders,
             requests,
+            environments: environments.clone(),
         }],
         environments,
         warnings: Vec::new(),

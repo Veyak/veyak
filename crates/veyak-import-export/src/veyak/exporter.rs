@@ -49,6 +49,7 @@ pub fn export_workspace_as_veyak(
             collection: col.clone(),
             folders: flds.clone(),
             requests: reqs.clone(),
+            environments: Vec::new(),
         })
         .collect();
 
