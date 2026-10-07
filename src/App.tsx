@@ -12,6 +12,8 @@ import { SettingsPanel } from "./components/Settings/SettingsPanel";
 import { EnvironmentModal } from "./components/EnvironmentModal";
 import { ThemeInstallModal } from "./components/ThemeInstallModal";
 import { ThemePickerModal } from "./components/ThemePickerModal";
+import { ImportModal } from "./components/ImportModal";
+import { ExportModal } from "./components/ExportModal";
 import { Menu } from "lucide-react";
 
 import { UpdaterOverlay } from "./components/UpdaterOverlay";
@@ -189,6 +191,8 @@ export default function App() {
           <NewReqSaveModal isMobile={isMobile} />
           <ThemeInstallModal isMobile={isMobile} />
           <ThemePickerModal isMobile={isMobile} />
+          <ImportModal isMobile={isMobile} />
+          <ExportModal isMobile={isMobile} />
         </div>
       </div>
     </>

@@ -8,6 +8,8 @@ import {
   FileText,
   ChevronRight,
   Palette,
+  FolderInput,
+  Download,
 } from "lucide-react";
 import { useVartaStore } from "../store/vartaStore";
 import { useSettingsStore } from "../store/settingStore";
@@ -57,6 +59,10 @@ export default function CommandPalette({
   const setSettingsOpen = useSettingsStore((s) => s.setSettingsOpen);
   const collectionTrees = useWorkspaceStore((s) => s.collectionTrees);
   const openThemePicker = useWorkspaceStore((s) => s.openThemePicker);
+  const openImportModal = useWorkspaceStore((s) => s.openImportModal);
+  const openExportModal = useWorkspaceStore((s) => s.openExportModal);
+  const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId);
+  const activeCollectionId = useWorkspaceStore((s) => s.activeCollectionId);
 
   const [query, setQuery] = useState("");
   const [selectedIdx, setSelectedIdx] = useState(0);
@@ -73,6 +79,46 @@ export default function CommandPalette({
         hint: isMobile ? undefined : "Ctrl+T",
         icon: <Plus className="w-3.5 h-3.5" />,
         action: () => newTab(),
+      },
+      {
+        id: "action-import",
+        category: "actions",
+        label: "Import API Data (Postman, Insomnia, Yaak, Veyak)",
+        hint: "Import",
+        icon: <FolderInput className="w-3.5 h-3.5" />,
+        action: () => {
+          toggle(false);
+          openImportModal();
+        },
+      },
+      {
+        id: "action-export-collection",
+        category: "actions",
+        label: "Export Active Collection",
+        hint: "Export",
+        icon: <Download className="w-3.5 h-3.5" />,
+        action: () => {
+          toggle(false);
+          if (activeCollectionId) {
+            openExportModal({ type: "collection", id: activeCollectionId });
+          } else {
+            openExportModal();
+          }
+        },
+      },
+      {
+        id: "action-export-workspace",
+        category: "actions",
+        label: "Export Entire Workspace",
+        icon: <Download className="w-3.5 h-3.5" />,
+        action: () => {
+          toggle(false);
+          if (activeWorkspaceId) {
+            openExportModal({ type: "workspace", id: activeWorkspaceId });
+          } else {
+            openExportModal({ type: "workspace" });
+          }
+        },
       },
       {
         id: "action-theme-picker",

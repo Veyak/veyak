@@ -8,7 +8,7 @@ export type ApiKeyAuth = { key: string, value: string, addTo: ApiKeyTarget, };
 
 export type ApiKeyTarget = "header" | "query";
 
-export type ApiRequest = { id: string, collectionId: string, folderId: string | null, name: string, method: HttpMethod, url: string, params: Array<KeyValueRow>, headers: Array<KeyValueRow>, cookies: Array<CookieRow>, auth: AuthConfig, body: RequestBody, };
+export type ApiRequest = { id: string, collectionId: string, folderId: string | null, sortOrder: bigint, name: string, method: HttpMethod, url: string, params: Array<KeyValueRow>, headers: Array<KeyValueRow>, cookies: Array<CookieRow>, auth: AuthConfig, body: RequestBody, };
 
 export type ApiResponse = { status: number, statusText: string, timeMs: bigint, sizeBytes: bigint, headers: { [key in string]: string }, cookies: Array<CookieRow>, body: string, };
 
@@ -59,6 +59,8 @@ export type EnvironmentVariable = { id: string, environmentid: string, key: stri
 
 export type EnvironmentWithVariables = { environment: Environment, variables: Array<EnvironmentVariable>, };
 
+export type ExportFormat = "postman" | "insomnia" | "yaak" | "veyak";
+
 export type Folder = { id: string, collectionId: string, parentFolderId: string | null, name: string, sortOrder: bigint, };
 
 export type FolderNode = { folder: Folder, children: Array<FolderNode>, requests: Array<RequestItem>, };
@@ -74,7 +76,7 @@ export type GraphQlField = { name: string, description?: string, typeRef: GraphQ
 /**
  * A persisted GraphQL request item stored in a collection.
  */
-export type GraphQlRequest = { id: string, collectionId: string, folderId: string | null, name: string, method: string, 
+export type GraphQlRequest = { id: string, collectionId: string, folderId: string | null, name: string, method: string, sortOrder: bigint, 
 /**
  * The GraphQL endpoint URL
  */
@@ -140,7 +142,7 @@ export type GrpcMethod = { name: string, fullName: string, requestType: string, 
 
 export type GrpcMethodType = "Unary" | "ClientStreaming" | "ServerStreaming" | "BidirectionalStreaming";
 
-export type GrpcRequest = { id: string, collectionId: string, folderId: string | null, name: string, 
+export type GrpcRequest = { id: string, collectionId: string, folderId: string | null, name: string, sortOrder: bigint, 
 /**
  * e.g. "grpc.postman-echo.com:443"
  */
@@ -193,6 +195,10 @@ export type GrpcStreamType = "unary" | "server_stream" | "client_stream" | "bidi
 export type HistoryEntry = { id: string, requestId: string | null, name: string | null, method: HttpMethod, url: string, status: number, durationMs: bigint, createdAt: string, };
 
 export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "OPTIONS" | "HEAD" | "WS" | "QUERY";
+
+export type ImportFormat = "auto" | "postman" | "postmanenvironment" | "insomnia" | "yaak" | "veyak";
+
+export type ImportSummary = { collectionsCount: number, foldersCount: number, requestsCount: number, environmentsCount: number, warnings: Array<string>, };
 
 export type KeyValueRow = { id: string, key: string, value: string, enabled: boolean, };
 

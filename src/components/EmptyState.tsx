@@ -1,5 +1,6 @@
 import { Plus, Upload } from "lucide-react";
 import { useVartaStore } from "../store/vartaStore";
+import { useWorkspaceStore } from "../store/workspaceStore";
 
 interface EmptyStateProps {
   isMobile?: boolean;
@@ -7,6 +8,7 @@ interface EmptyStateProps {
 
 export default function EmptyState({ isMobile = false }: EmptyStateProps) {
   const newTab = useVartaStore((s) => s.newTab);
+  const openImportModal = useWorkspaceStore((s) => s.openImportModal);
 
   return (
     <div className="flex h-full flex-col items-center justify-center gap-4 text-center px-4">
@@ -59,7 +61,8 @@ export default function EmptyState({ isMobile = false }: EmptyStateProps) {
           Create request
         </button>
         <button
-          className={`flex items-center justify-center gap-1.5 rounded-md border border-border text-sm text-text-secondary hover:bg-panel-raised ${
+          onClick={() => openImportModal()}
+          className={`flex items-center justify-center gap-1.5 rounded-md border border-border text-sm text-text-secondary hover:bg-panel-raised transition-colors cursor-pointer ${
             isMobile ? "w-full px-4 py-2.5" : "px-4 py-2"
           }`}
         >

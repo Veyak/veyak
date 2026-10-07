@@ -432,6 +432,45 @@ pub struct HistoryEntry {
 }
 
 // ---------------------------------------------------------------------
+// Import / Export
+// ---------------------------------------------------------------------
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "models.ts")]
+pub struct ImportSummary {
+    pub collections_count: usize,
+    pub folders_count: usize,
+    pub requests_count: usize,
+    pub environments_count: usize,
+    pub warnings: Vec<String>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default, TS)]
+#[serde(rename_all = "lowercase")]
+#[ts(export, export_to = "models.ts")]
+pub enum ImportFormat {
+    #[default]
+    Auto,
+    Postman,
+    PostmanEnvironment,
+    Insomnia,
+    Yaak,
+    Veyak,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default, TS)]
+#[serde(rename_all = "lowercase")]
+#[ts(export, export_to = "models.ts")]
+pub enum ExportFormat {
+    #[default]
+    Postman,
+    Insomnia,
+    Yaak,
+    Veyak,
+}
+
+// ---------------------------------------------------------------------
 // Settings — follow-redirect / TLS / proxy behavior, all the way down
 // to a single persisted JSON blob (see migrations/0001_init.sql).
 // ---------------------------------------------------------------------

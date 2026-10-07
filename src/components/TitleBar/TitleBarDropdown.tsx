@@ -50,6 +50,9 @@ export interface TitleBarDropdownProps<T extends DropdownItem = DropdownItem> {
   createPlaceholder?: string;
   onCreate?: (name: string) => Promise<void> | void;
 
+  // Footer Actions (e.g. Import / Export)
+  renderFooter?: (closeDropdown: () => void) => React.ReactNode;
+
   // Controlled Open State
   isOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -75,6 +78,7 @@ export function TitleBarDropdown<T extends DropdownItem = DropdownItem>({
   createButtonLabel,
   createPlaceholder,
   onCreate,
+  renderFooter,
   isOpen: controlledIsOpen,
   onOpenChange,
 }: TitleBarDropdownProps<T>) {
@@ -351,6 +355,13 @@ export function TitleBarDropdown<T extends DropdownItem = DropdownItem>({
                   {createButtonLabel || `Create ${headerTitle}`}
                 </button>
               )}
+            </div>
+          )}
+
+          {/* Action Footer (e.g., Import / Export) */}
+          {renderFooter && (
+            <div className="border-t border-border/40 bg-panel-raised/40 p-1">
+              {renderFooter(handleClose)}
             </div>
           )}
         </div>

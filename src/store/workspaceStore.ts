@@ -10,6 +10,9 @@ import {
   ActiveState,
   Theme,
   ThemeTokens,
+  ImportSummary,
+  ImportFormat,
+  ExportFormat,
 } from "@veyak-internal/models";
 
 const ALL_MANAGED_CSS_VARS: string[] = [
@@ -207,6 +210,45 @@ export interface WorkspaceStore {
   closeThemePicker: () => void;
   previewTheme: (theme: Theme) => void;
   revertThemePreview: () => void;
+
+  // Import / Export
+  isImportModalOpen: boolean;
+  importTargetCollectionId: string | null;
+  openImportModal: (targetCollectionId?: string) => void;
+  closeImportModal: () => void;
+  isExportModalOpen: boolean;
+  exportModalTarget: {
+    type: "workspace" | "collection" | "environment";
+    id?: string;
+    name?: string;
+  } | null;
+  openExportModal: (target?: {
+    type: "workspace" | "collection" | "environment";
+    id?: string;
+    name?: string;
+  }) => void;
+  closeExportModal: () => void;
+
+  importDataContent: (
+    content: string,
+    format?: ImportFormat,
+    targetCollectionId?: string,
+  ) => Promise<ImportSummary>;
+  importFileContent: (
+    filePath: string,
+    format?: ImportFormat,
+    targetCollectionId?: string,
+  ) => Promise<ImportSummary>;
+  detectFormat: (content: string) => Promise<ImportFormat>;
+  exportCollectionContent: (
+    collectionId: string,
+    format: ExportFormat,
+  ) => Promise<string>;
+  exportWorkspaceContent: (format: ExportFormat) => Promise<string>;
+  exportEnvironmentContent: (
+    environmentId: string,
+    format: ExportFormat,
+  ) => Promise<string>;
 }
 
 export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
@@ -1109,6 +1151,102 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
     // Keep previewedTheme active so TitleBar can apply or revert
     set({
       isThemePickerOpen: false,
+    });
+  },
+
+  // Import / Export State & Actions
+  isImportModalOpen: false,
+  importTargetCollectionId: null,
+  openImportModal: (targetCollectionId?: string) => {
+    set({
+      isImportModalOpen: true,
+      importTargetCollectionId: targetCollectionId || null,
+    });
+  },
+  closeImportModal: () => {
+    set({
+      isImportModalOpen: false,
+      importTargetCollectionId: null,
+    });
+  },
+
+  isExportModalOpen: false,
+  exportModalTarget: null,
+  openExportModal: (target) => {
+    set({
+      isExportModalOpen: true,
+      exportModalTarget: target || null,
+    });
+  },
+  closeExportModal: () => {
+    set({
+      isExportModalOpen: false,
+      exportModalTarget: null,
+    });
+  },
+
+  importDataContent: async (content: string, format?: ImportFormat, targetCollectionId?: string) => {
+    const { activeWorkspaceId, fetchCollections, fetchEnvironments } = get();
+    if (!activeWorkspaceId) throw new Error("No active workspace selected");
+
+    const summary = await invoke<ImportSummary>("import_data", {
+      workspaceid: activeWorkspaceId,
+      targetCollectionId: targetCollectionId || null,
+      content,
+      format: format || null,
+    });
+
+    await fetchCollections();
+    await fetchEnvironments(activeWorkspaceId);
+    return summary;
+  },
+
+  importFileContent: async (filePath: string, format?: ImportFormat, targetCollectionId?: string) => {
+    const { activeWorkspaceId, fetchCollections, fetchEnvironments } = get();
+    if (!activeWorkspaceId) throw new Error("No active workspace selected");
+
+    const summary = await invoke<ImportSummary>("import_file", {
+      workspaceid: activeWorkspaceId,
+      targetCollectionId: targetCollectionId || null,
+      filePath,
+      format: format || null,
+    });
+
+    await fetchCollections();
+    await fetchEnvironments(activeWorkspaceId);
+    return summary;
+  },
+
+  detectFormat: async (content: string) => {
+    return await invoke<ImportFormat>("detect_import_format", { content });
+  },
+
+  exportCollectionContent: async (collectionId: string, format: ExportFormat) => {
+    const { activeWorkspaceId } = get();
+    if (!activeWorkspaceId) throw new Error("No active workspace selected");
+    return await invoke<string>("export_collection", {
+      workspaceid: activeWorkspaceId,
+      collectionid: collectionId,
+      format,
+    });
+  },
+
+  exportWorkspaceContent: async (format: ExportFormat) => {
+    const { activeWorkspaceId } = get();
+    if (!activeWorkspaceId) throw new Error("No active workspace selected");
+    return await invoke<string>("export_workspace", {
+      workspaceid: activeWorkspaceId,
+      format,
+    });
+  },
+
+  exportEnvironmentContent: async (environmentId: string, format: ExportFormat) => {
+    const { activeWorkspaceId } = get();
+    if (!activeWorkspaceId) throw new Error("No active workspace selected");
+    return await invoke<string>("export_environment", {
+      workspaceid: activeWorkspaceId,
+      environmentid: environmentId,
+      format,
     });
   },
 }));

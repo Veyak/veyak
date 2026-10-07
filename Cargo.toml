@@ -1,5 +1,14 @@
 [workspace]
-members = ["src-tauri", "crates/veyak-auth", "crates/veyak-models", "crates/veyak-db", "crates/veyak-error", "crates/veyak-grpc", "crates/veyak-graphql"]
+members = [
+    "src-tauri",
+    "crates/veyak-auth",
+    "crates/veyak-models",
+    "crates/veyak-db",
+    "crates/veyak-error",
+    "crates/veyak-grpc",
+    "crates/veyak-graphql",
+    "crates/veyak-import-export",
+]
 resolver = "2"
 
 [profile.release]
