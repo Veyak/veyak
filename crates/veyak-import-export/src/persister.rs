@@ -19,10 +19,12 @@ pub fn persist_import_data(
     let mut folders_count = 0;
     let mut requests_count = 0;
     let mut environments_count = 0;
+    let mut total_col_envs = 0;
     let warnings = data.warnings;
 
     // Process collections
     for imported_col in data.collections {
+        total_col_envs += imported_col.environments.len();
         let (col_id, is_new_collection) = match target_collection_id {
             Some(tid) if !tid.trim().is_empty() => (tid.to_string(), false),
             _ => {
@@ -32,6 +34,7 @@ pub fn persist_import_data(
                     workspace_id: workspace_id.to_string(),
                     name: imported_col.name,
                     sort_order: 0,
+                    active_environment_id: None,
                 };
                 let meta_path = dd.collection_meta_path(workspace_id, &new_id);
                 write_yaml(&meta_path, &col)?;
@@ -79,22 +82,94 @@ pub fn persist_import_data(
             requests_count += 1;
         }
 
+        // Save collection environments
+        if !imported_col.environments.is_empty() {
+            let envs_path = dd.collection_environments_path(workspace_id, &col_id);
+            let mut existing_envs: Vec<EnvironmentWithVariables> = read_yaml_vec(&envs_path)?;
+
+            for imported_env in imported_col.environments {
+                let new_env_id = Uuid::new_v4().to_string();
+                let env_model = Environment {
+                    id: new_env_id.clone(),
+                    collection_id: col_id.clone(),
+                    name: imported_env.name,
+                    sort_order: existing_envs.len() as i64,
+                };
+
+                let variables = imported_env
+                    .variables
+                    .into_iter()
+                    .map(|mut v| {
+                        v.id = Uuid::new_v4().to_string();
+                        v.environmentid = new_env_id.clone();
+                        v
+                    })
+                    .collect::<Vec<EnvironmentVariable>>();
+
+                existing_envs.push(EnvironmentWithVariables {
+                    environment: env_model,
+                    variables,
+                });
+                environments_count += 1;
+            }
+
+            write_yaml(&envs_path, &existing_envs)?;
+        }
+
         if !is_new_collection && collections_count == 0 {
             // Target collection was used
             collections_count = 1;
         }
     }
 
-    // Process environments
-    if !data.environments.is_empty() {
-        let envs_path = dd.environments_path(workspace_id);
+    // Process standalone environments (if any top-level environments were not attached to collections)
+    if total_col_envs == 0 && !data.environments.is_empty() {
+        // Resolve target collection ID for standalone environments
+        let dest_col_id = match target_collection_id {
+            Some(tid) if !tid.trim().is_empty() => tid.to_string(),
+            _ => {
+                // Look for an existing collection in the workspace
+                let cols_dir = dd.collections_dir(workspace_id);
+                let mut found_id = None;
+                if cols_dir.exists() {
+                    if let Ok(entries) = std::fs::read_dir(&cols_dir) {
+                        for entry in entries.flatten() {
+                            if entry.file_type().map(|t| t.is_dir()).unwrap_or(false) {
+                                found_id = Some(entry.file_name().to_string_lossy().to_string());
+                                break;
+                            }
+                        }
+                    }
+                }
+                match found_id {
+                    Some(id) => id,
+                    None => {
+                        // Create a default collection if workspace has none
+                        let new_id = Uuid::new_v4().to_string();
+                        let col = Collection {
+                            id: new_id.clone(),
+                            workspace_id: workspace_id.to_string(),
+                            name: "Default Collection".to_string(),
+                            sort_order: 0,
+                            active_environment_id: None,
+                        };
+                        let meta_path = dd.collection_meta_path(workspace_id, &new_id);
+                        write_yaml(&meta_path, &col)?;
+                        collections_count += 1;
+                        new_id
+                    }
+                }
+            }
+        };
+
+        let envs_path = dd.collection_environments_path(workspace_id, &dest_col_id);
         let mut existing_envs: Vec<EnvironmentWithVariables> = read_yaml_vec(&envs_path)?;
 
         for imported_env in data.environments {
             let new_env_id = Uuid::new_v4().to_string();
             let env_model = Environment {
                 id: new_env_id.clone(),
-                workspace_id: workspace_id.to_string(),
+                collection_id: dest_col_id.clone(),
                 name: imported_env.name,
                 sort_order: existing_envs.len() as i64,
             };

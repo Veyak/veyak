@@ -7,10 +7,11 @@ use veyak_models::{Environment, EnvironmentVariable, EnvironmentWithVariables};
 pub fn list_environments(
     dd: &DataDir,
     workspace_id: &str,
+    collection_id: &str,
 ) -> AppResult<Vec<EnvironmentWithVariables>> {
-    let path = dd.environments_path(workspace_id);
+    migrate_legacy_environments_if_needed(dd, workspace_id, collection_id);
+    let path = dd.collection_environments_path(workspace_id, collection_id);
     let mut envs: Vec<EnvironmentWithVariables> = read_yaml_vec(&path)?;
-    // Sort by sort_order ASC
     envs.sort_by_key(|e| e.environment.sort_order);
     Ok(envs)
 }
@@ -18,9 +19,10 @@ pub fn list_environments(
 pub fn list_variables(
     dd: &DataDir,
     workspace_id: &str,
+    collection_id: &str,
     environment_id: &str,
 ) -> AppResult<Vec<EnvironmentVariable>> {
-    let envs = list_environments(dd, workspace_id)?;
+    let envs = list_environments(dd, workspace_id, collection_id)?;
     Ok(envs
         .into_iter()
         .find(|e| e.environment.id == environment_id)
@@ -28,22 +30,55 @@ pub fn list_variables(
         .unwrap_or_default())
 }
 
-/// Find which workspace an environment belongs to by scanning all
-/// workspace environment files.
-fn find_environment_workspace(dd: &DataDir, environment_id: &str) -> AppResult<String> {
+/// Find which (workspace_id, collection_id) an environment belongs to by
+/// scanning all collections.
+pub fn find_environment_location(
+    dd: &DataDir,
+    environment_id: &str,
+) -> AppResult<(String, String)> {
     let ws_dir = dd.workspaces_dir();
     if ws_dir.exists() {
-        for entry in std::fs::read_dir(&ws_dir)? {
-            let entry = entry?;
-            if !entry.file_type()?.is_dir() {
+        for ws_entry in std::fs::read_dir(&ws_dir)? {
+            let ws_entry = ws_entry?;
+            if !ws_entry.file_type()?.is_dir() {
                 continue;
             }
-            let ws_id = entry.file_name().to_string_lossy().to_string();
-            let envs_path = dd.environments_path(&ws_id);
-            if envs_path.exists() {
-                let envs: Vec<EnvironmentWithVariables> = read_yaml_vec(&envs_path)?;
-                if envs.iter().any(|e| e.environment.id == environment_id) {
-                    return Ok(ws_id);
+            let ws_id = ws_entry.file_name().to_string_lossy().to_string();
+            let cols_dir = dd.collections_dir(&ws_id);
+            if cols_dir.exists() {
+                for col_entry in std::fs::read_dir(&cols_dir)? {
+                    let col_entry = col_entry?;
+                    if !col_entry.file_type()?.is_dir() {
+                        continue;
+                    }
+                    let col_id = col_entry.file_name().to_string_lossy().to_string();
+                    let envs_path = dd.collection_environments_path(&ws_id, &col_id);
+                    if envs_path.exists() {
+                        let envs: Vec<EnvironmentWithVariables> = read_yaml_vec(&envs_path)?;
+                        if envs.iter().any(|e| e.environment.id == environment_id) {
+                            return Ok((ws_id, col_id));
+                        }
+                    }
+                }
+            }
+
+            // Also check legacy path and migrate if needed
+            let legacy_path = dd.environments_path(&ws_id);
+            if legacy_path.exists() {
+                if let Ok(envs) = read_yaml_vec::<EnvironmentWithVariables>(&legacy_path) {
+                    if envs.iter().any(|e| e.environment.id == environment_id) {
+                        // Find first collection to associate with
+                        if cols_dir.exists() {
+                            if let Ok(mut entries) = std::fs::read_dir(&cols_dir) {
+                                if let Some(Ok(col_entry)) = entries.next() {
+                                    let col_id =
+                                        col_entry.file_name().to_string_lossy().to_string();
+                                    migrate_legacy_environments_if_needed(dd, &ws_id, &col_id);
+                                    return Ok((ws_id, col_id));
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -53,16 +88,21 @@ fn find_environment_workspace(dd: &DataDir, environment_id: &str) -> AppResult<S
     )))
 }
 
-pub fn create_environment(dd: &DataDir, workspace_id: &str, name: &str) -> AppResult<Environment> {
+pub fn create_environment(
+    dd: &DataDir,
+    workspace_id: &str,
+    collection_id: &str,
+    name: &str,
+) -> AppResult<Environment> {
+    let path = dd.collection_environments_path(workspace_id, collection_id);
+    let mut envs: Vec<EnvironmentWithVariables> = read_yaml_vec(&path)?;
     let environment = Environment {
         id: new_id(),
-        workspace_id: workspace_id.to_string(),
+        collection_id: collection_id.to_string(),
         name: name.to_string(),
-        sort_order: 0,
+        sort_order: envs.len() as i64,
     };
 
-    let path = dd.environments_path(workspace_id);
-    let mut envs: Vec<EnvironmentWithVariables> = read_yaml_vec(&path)?;
     envs.push(EnvironmentWithVariables {
         environment: environment.clone(),
         variables: Vec::new(),
@@ -73,8 +113,8 @@ pub fn create_environment(dd: &DataDir, workspace_id: &str, name: &str) -> AppRe
 }
 
 pub fn rename_environment(dd: &DataDir, id: &str, name: &str) -> AppResult<()> {
-    let ws_id = find_environment_workspace(dd, id)?;
-    let path = dd.environments_path(&ws_id);
+    let (ws_id, col_id) = find_environment_location(dd, id)?;
+    let path = dd.collection_environments_path(&ws_id, &col_id);
     let mut envs: Vec<EnvironmentWithVariables> = read_yaml_vec(&path)?;
     if let Some(env) = envs.iter_mut().find(|e| e.environment.id == id) {
         env.environment.name = name.to_string();
@@ -83,8 +123,8 @@ pub fn rename_environment(dd: &DataDir, id: &str, name: &str) -> AppResult<()> {
 }
 
 pub fn delete_environment(dd: &DataDir, id: &str) -> AppResult<()> {
-    let ws_id = find_environment_workspace(dd, id)?;
-    let path = dd.environments_path(&ws_id);
+    let (ws_id, col_id) = find_environment_location(dd, id)?;
+    let path = dd.collection_environments_path(&ws_id, &col_id);
     let mut envs: Vec<EnvironmentWithVariables> = read_yaml_vec(&path)?;
     envs.retain(|e| e.environment.id != id);
     write_yaml(&path, &envs)
@@ -99,8 +139,8 @@ pub fn replace_variables(
     environment_id: &str,
     variables: &[EnvironmentVariable],
 ) -> AppResult<()> {
-    let ws_id = find_environment_workspace(dd, environment_id)?;
-    let path = dd.environments_path(&ws_id);
+    let (ws_id, col_id) = find_environment_location(dd, environment_id)?;
+    let path = dd.collection_environments_path(&ws_id, &col_id);
     let mut envs: Vec<EnvironmentWithVariables> = read_yaml_vec(&path)?;
 
     if let Some(env) = envs.iter_mut().find(|e| e.environment.id == environment_id) {
@@ -121,6 +161,28 @@ pub fn replace_variables(
     write_yaml(&path, &envs)
 }
 
+/// Migrates any legacy workspace-level `environments.yaml` to the specified
+/// collection's `environments.yaml` if the collection currently has none.
+pub fn migrate_legacy_environments_if_needed(
+    dd: &DataDir,
+    workspace_id: &str,
+    collection_id: &str,
+) {
+    let legacy_path = dd.environments_path(workspace_id);
+    let col_path = dd.collection_environments_path(workspace_id, collection_id);
+    if legacy_path.exists() && !col_path.exists() {
+        if let Ok(mut legacy_envs) = read_yaml_vec::<EnvironmentWithVariables>(&legacy_path) {
+            if !legacy_envs.is_empty() {
+                for env in &mut legacy_envs {
+                    env.environment.collection_id = collection_id.to_string();
+                }
+                let _ = write_yaml(&col_path, &legacy_envs);
+                let _ = std::fs::remove_file(&legacy_path);
+            }
+        }
+    }
+}
+
 /// Loads the active environment's enabled variables as a flat map, ready
 /// for `interpolate`. Returns an empty map if no environment is active.
 pub fn active_variable_map(
@@ -130,12 +192,11 @@ pub fn active_variable_map(
     let Some(env_id) = active_environment_id else {
         return Ok(HashMap::new());
     };
-    // We need to find the workspace for this environment
-    let ws_id = match find_environment_workspace(dd, env_id) {
-        Ok(id) => id,
+    let (ws_id, col_id) = match find_environment_location(dd, env_id) {
+        Ok(loc) => loc,
         Err(_) => return Ok(HashMap::new()),
     };
-    let vars = list_variables(dd, &ws_id, env_id)?;
+    let vars = list_variables(dd, &ws_id, &col_id, env_id)?;
     Ok(vars
         .into_iter()
         .filter(|v| v.enabled)

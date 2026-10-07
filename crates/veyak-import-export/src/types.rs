@@ -9,11 +9,12 @@ pub struct ImportData {
     pub warnings: Vec<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct ImportedCollection {
     pub name: String,
     pub folders: Vec<ImportedFolder>,
     pub requests: Vec<RequestItem>,
+    pub environments: Vec<ImportedEnvironment>,
 }
 
 #[derive(Debug, Clone)]

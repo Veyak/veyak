@@ -4,9 +4,23 @@ import { useWorkspaceStore } from "../store/workspaceStore";
 import { useVartaStore } from "../store/vartaStore";
 import { EnvironmentVariable } from "@veyak-internal/models";
 
-export const EnvironmentEditor: React.FC<{ activeWorkspaceId: string }> = ({
-  activeWorkspaceId,
+interface EnvironmentEditorProps {
+  activeCollectionId?: string;
+  activeWorkspaceId?: string;
+}
+
+export const EnvironmentEditor: React.FC<EnvironmentEditorProps> = ({
+  activeCollectionId: propCollectionId,
+  activeWorkspaceId: _activeWorkspaceId,
 }) => {
+  const storeCollectionId = useWorkspaceStore((s) => s.activeCollectionId);
+  const collections = useWorkspaceStore((s) => s.collections);
+  const activeCollectionId = propCollectionId || storeCollectionId;
+
+  const currentCollection = collections.find(
+    (c) => c.id === activeCollectionId,
+  );
+
   const {
     environments,
     activeEnvironmentId,
@@ -43,15 +57,15 @@ export const EnvironmentEditor: React.FC<{ activeWorkspaceId: string }> = ({
   }, [activeEnv?.environment.id]);
 
   useEffect(() => {
-    if (activeWorkspaceId) {
-      fetchEnvironments(activeWorkspaceId);
+    if (activeCollectionId) {
+      fetchEnvironments(activeCollectionId);
     }
-  }, [activeWorkspaceId, fetchEnvironments]);
+  }, [activeCollectionId, fetchEnvironments]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (newEnvName.trim()) {
-      await createEnvironment(activeWorkspaceId, newEnvName);
+    if (newEnvName.trim() && activeCollectionId) {
+      await createEnvironment(activeCollectionId, newEnvName);
       setNewEnvName("");
       setIsCreating(false);
     }
@@ -112,12 +126,20 @@ export const EnvironmentEditor: React.FC<{ activeWorkspaceId: string }> = ({
       {/* LEFT PANE: Environment List */}
       <div className="w-1/3 min-w-62.5 border-r border-border bg-panel flex flex-col">
         <div className="flex items-center justify-between p-3 border-b border-border">
-          <span className="text-xs font-semibold tracking-wider text-text-muted">
-            ENVIRONMENTS
-          </span>
+          <div className="flex flex-col min-w-0 pr-2">
+            <span className="text-[11px] font-semibold tracking-wider text-text-muted uppercase">
+              Environments
+            </span>
+            {currentCollection && (
+              <span className="text-xs font-medium text-text-primary truncate">
+                {currentCollection.name}
+              </span>
+            )}
+          </div>
           <button
             onClick={() => setIsCreating(true)}
-            className="p-1 hover:text-text-primary text-text-muted transition-colors"
+            className="p-1 hover:text-text-primary text-text-muted transition-colors cursor-pointer shrink-0"
+            title="Create Environment"
           >
             <Plus size={16} />
           </button>
@@ -141,10 +163,11 @@ export const EnvironmentEditor: React.FC<{ activeWorkspaceId: string }> = ({
             <div
               key={env.environment.id}
               onClick={() => setActiveEnvironment(env.environment.id)}
-              className={`group flex items-center justify-between p-2 rounded-md cursor-pointer transition-colors ${activeEnvironmentId === env.environment.id
+              className={`group flex items-center justify-between p-2 rounded-md cursor-pointer transition-colors ${
+                activeEnvironmentId === env.environment.id
                   ? "bg-primary/20 text-text-primary"
                   : "text-text-secondary hover:bg-borderMuted"
-                }`}
+              }`}
             >
               {editingId === env.environment.id ? (
                 <form
@@ -218,10 +241,11 @@ export const EnvironmentEditor: React.FC<{ activeWorkspaceId: string }> = ({
                 <button
                   onClick={handleSaveVariables}
                   disabled={!isDirty}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded text-sm font-medium transition-all ${isDirty
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded text-sm font-medium transition-all ${
+                    isDirty
                       ? "bg-primary text-white hover:bg-primary-hover shadow-panel"
                       : "bg-panel text-text-muted opacity-50 cursor-default"
-                    }`}
+                  }`}
                 >
                   <Save size={16} />
                   Save

@@ -89,6 +89,7 @@ pub fn import_postman_collection(collection: PostmanCollection) -> AppResult<Imp
             },
             folders,
             requests,
+            environments: environments.clone(),
         }],
         environments,
         warnings,

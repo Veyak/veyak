@@ -65,7 +65,6 @@ export interface RequestTab {
   graphqlConnectionId?: string | null;
 }
 
-
 export interface Workspace {
   id: string;
   name: string;
@@ -145,8 +144,8 @@ export interface WorkspaceStore {
   deleteRequest: (requestId: string) => Promise<void>;
   renameRequest: (id: string, name: string) => Promise<void>;
 
-  fetchEnvironments: (workspaceid: string) => Promise<void>;
-  createEnvironment: (workspaceid: string, name: string) => Promise<void>;
+  fetchEnvironments: (collectionId?: string) => Promise<void>;
+  createEnvironment: (collectionId: string, name: string) => Promise<void>;
   renameEnvironment: (environmentid: string, name: string) => Promise<void>;
   deleteEnvironment: (environmentid: string) => Promise<void>;
   saveVariables: (
@@ -215,12 +214,7 @@ export interface GrpcMetadataRow {
 export type GraphQlOperationType = "query" | "mutation" | "subscription";
 
 export type GraphQlCallStatus =
-  | "idle"
-  | "sending"
-  | "streaming"
-  | "ok"
-  | "error"
-  | "cancelled";
+  "idle" | "sending" | "streaming" | "ok" | "error" | "cancelled";
 
 export interface GraphQlHeaderRow {
   id: string;
@@ -292,8 +286,6 @@ export interface GraphQlResponse {
   errors?: string;
   extensions?: string;
 }
-
-
 
 export const UI_CSS_VAR_MAP: Record<string, string> = {
   // camelCase

@@ -17,7 +17,7 @@ pub fn import_veyak(content: &str) -> AppResult<ImportData> {
             })
             .collect();
 
-        let environments = col_export
+        let environments: Vec<ImportedEnvironment> = col_export
             .environments
             .unwrap_or_default()
             .into_iter()
@@ -32,6 +32,7 @@ pub fn import_veyak(content: &str) -> AppResult<ImportData> {
                 name: col_export.collection.name,
                 folders,
                 requests: col_export.requests,
+                environments: environments.clone(),
             }],
             environments,
             warnings: Vec::new(),
@@ -55,10 +56,20 @@ pub fn import_veyak(content: &str) -> AppResult<ImportData> {
                     })
                     .collect();
 
+                let col_envs = c
+                    .environments
+                    .into_iter()
+                    .map(|e| ImportedEnvironment {
+                        name: e.environment.name,
+                        variables: e.variables,
+                    })
+                    .collect();
+
                 ImportedCollection {
                     name: c.collection.name,
                     folders,
                     requests: c.requests,
+                    environments: col_envs,
                 }
             })
             .collect();

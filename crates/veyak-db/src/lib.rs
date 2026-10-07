@@ -68,6 +68,11 @@ impl DataDir {
             .join("collection.yaml")
     }
 
+    pub fn collection_environments_path(&self, workspace_id: &str, collection_id: &str) -> PathBuf {
+        self.collection_dir(workspace_id, collection_id)
+            .join("environments.yaml")
+    }
+
     pub fn requests_dir(&self, workspace_id: &str, collection_id: &str) -> PathBuf {
         self.collection_dir(workspace_id, collection_id)
             .join("requests")
@@ -183,11 +188,8 @@ pub fn init_data_dir(data_dir: &Path) -> AppResult<DataDir> {
     if !dd.app_state_path().exists() {
         let state = ActiveState {
             active_workspace_id: Some(default_ws_id.to_string()),
-            active_environment_id: None,
             active_theme_id: Some("veyak-dark".to_string()),
-            active_collection_id: None,
-            active_folder_id: None,
-            active_item_id: None,
+            ..Default::default()
         };
         write_yaml(&dd.app_state_path(), &state)?;
     }

@@ -78,7 +78,7 @@ fn import_yaak_object(obj: YaakResourceObject) -> AppResult<ImportData> {
         ));
     }
 
-    let environments = obj
+    let environments: Vec<ImportedEnvironment> = obj
         .environments
         .into_iter()
         .map(convert_yaak_environment)
@@ -89,6 +89,7 @@ fn import_yaak_object(obj: YaakResourceObject) -> AppResult<ImportData> {
             name: collection_name,
             folders,
             requests,
+            environments: environments.clone(),
         }],
         environments,
         warnings: Vec::new(),
@@ -199,6 +200,7 @@ fn import_yaak_list(list: Vec<YaakResourceItem>) -> AppResult<ImportData> {
             name: collection_name,
             folders,
             requests,
+            environments: environments.clone(),
         }],
         environments,
         warnings: Vec::new(),

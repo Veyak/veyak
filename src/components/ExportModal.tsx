@@ -71,7 +71,9 @@ const EXPORT_FORMATS: {
   },
 ];
 
-export const ExportModal: React.FC<ExportModalProps> = ({ isMobile = false }) => {
+export const ExportModal: React.FC<ExportModalProps> = ({
+  isMobile = false,
+}) => {
   const isExportModalOpen = useWorkspaceStore((s) => s.isExportModalOpen);
   const closeExportModal = useWorkspaceStore((s) => s.closeExportModal);
   const exportModalTarget = useWorkspaceStore((s) => s.exportModalTarget);
@@ -88,13 +90,15 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isMobile = false }) =>
   const exportEnvironmentContent = useWorkspaceStore(
     (s) => s.exportEnvironmentContent,
   );
+  const fetchEnvironments = useWorkspaceStore((s) => s.fetchEnvironments);
 
   // Scope selection
-  const [scope, setScope] = useState<"collection" | "workspace" | "environment">(
-    "collection",
-  );
+  const [scope, setScope] = useState<
+    "collection" | "workspace" | "environment"
+  >("collection");
   const [selectedCollectionId, setSelectedCollectionId] = useState<string>("");
-  const [selectedEnvironmentId, setSelectedEnvironmentId] = useState<string>("");
+  const [selectedEnvironmentId, setSelectedEnvironmentId] =
+    useState<string>("");
 
   // Format selection
   const [format, setFormat] = useState<ExportFormat>("postman");
@@ -123,15 +127,17 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isMobile = false }) =>
         }
       } else {
         setScope("collection");
-        setSelectedCollectionId(
-          activeCollectionId || collections[0]?.id || "",
-        );
-        setSelectedEnvironmentId(
-          environments[0]?.environment.id || "",
-        );
+        setSelectedCollectionId(activeCollectionId || collections[0]?.id || "");
+        setSelectedEnvironmentId(environments[0]?.environment.id || "");
       }
     }
-  }, [isExportModalOpen, exportModalTarget, activeCollectionId, collections, environments]);
+  }, [
+    isExportModalOpen,
+    exportModalTarget,
+    activeCollectionId,
+    collections,
+    environments,
+  ]);
 
   // Handle escape key
   useEffect(() => {
@@ -182,7 +188,9 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isMobile = false }) =>
         if (!isCancelled) {
           console.error("Export generation error:", err);
           setError(
-            typeof err === "string" ? err : err?.message || "Failed to generate export.",
+            typeof err === "string"
+              ? err
+              : err?.message || "Failed to generate export.",
           );
         }
       } finally {
@@ -230,7 +238,9 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isMobile = false }) =>
       let baseName = "export";
       if (scope === "collection") {
         const col = collections.find((c) => c.id === selectedCollectionId);
-        baseName = col ? col.name.replace(/\s+/g, "_").toLowerCase() : "collection";
+        baseName = col
+          ? col.name.replace(/\s+/g, "_").toLowerCase()
+          : "collection";
       } else if (scope === "workspace") {
         baseName = "workspace";
       } else if (scope === "environment") {
@@ -264,7 +274,9 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isMobile = false }) =>
     >
       <div
         className={`relative w-full ${
-          isMobile ? "max-w-full h-full max-h-full rounded-none" : "max-w-2xl max-h-[90vh] rounded-2xl"
+          isMobile
+            ? "max-w-full h-full max-h-full rounded-none"
+            : "max-w-2xl max-h-[90vh] rounded-2xl"
         } bg-panel border border-border shadow-2xl overflow-hidden flex flex-col animate-scale-in`}
         onClick={(e) => e.stopPropagation()}
       >
@@ -361,22 +373,55 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isMobile = false }) =>
             </div>
           )}
 
-          {scope === "environment" && environments.length > 0 && (
-            <div>
-              <label className="block text-xs font-medium text-text-secondary mb-1.5">
-                Select Environment
-              </label>
-              <select
-                value={selectedEnvironmentId}
-                onChange={(e) => setSelectedEnvironmentId(e.target.value)}
-                className="w-full bg-panel-raised border border-border text-text-primary rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-primary/60"
-              >
-                {environments.map((env) => (
-                  <option key={env.environment.id} value={env.environment.id}>
-                    {env.environment.name}
-                  </option>
-                ))}
-              </select>
+          {scope === "environment" && (
+            <div className="space-y-3">
+              {collections.length > 1 && (
+                <div>
+                  <label className="block text-xs font-medium text-text-secondary mb-1.5">
+                    Select Collection
+                  </label>
+                  <select
+                    value={selectedCollectionId}
+                    onChange={(e) => {
+                      const colId = e.target.value;
+                      setSelectedCollectionId(colId);
+                      fetchEnvironments(colId);
+                    }}
+                    className="w-full bg-panel-raised border border-border text-text-primary rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-primary/60"
+                  >
+                    {collections.map((col) => (
+                      <option key={col.id} value={col.id}>
+                        {col.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              {environments.length > 0 ? (
+                <div>
+                  <label className="block text-xs font-medium text-text-secondary mb-1.5">
+                    Select Environment
+                  </label>
+                  <select
+                    value={selectedEnvironmentId}
+                    onChange={(e) => setSelectedEnvironmentId(e.target.value)}
+                    className="w-full bg-panel-raised border border-border text-text-primary rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-primary/60"
+                  >
+                    {environments.map((env) => (
+                      <option
+                        key={env.environment.id}
+                        value={env.environment.id}
+                      >
+                        {env.environment.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <div className="text-xs text-text-muted py-1">
+                  No environments found in this collection.
+                </div>
+              )}
             </div>
           )}
 
@@ -426,7 +471,9 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isMobile = false }) =>
                 <span className="text-xs font-medium text-text-secondary">
                   Export Preview
                 </span>
-                {isLoading && <Loader2 className="w-3 h-3 animate-spin text-primary" />}
+                {isLoading && (
+                  <Loader2 className="w-3 h-3 animate-spin text-primary" />
+                )}
               </div>
               <button
                 type="button"

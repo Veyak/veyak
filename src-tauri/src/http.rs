@@ -27,8 +27,12 @@ pub async fn send_request(
 
     let settings = db::settings::get_settings(dd)?;
     let active = db::app_state::get_active_state(dd)?;
-    let env_vars =
-        db::environments::active_variable_map(dd, active.active_environment_id.as_deref())?;
+    let active_env_id = active
+        .collection_active_environments
+        .get(&request.collection_id)
+        .map(String::as_str)
+        .or(active.active_environment_id.as_deref());
+    let env_vars = db::environments::active_variable_map(dd, active_env_id)?;
 
     #[cfg(feature = "scripting")]
     {
@@ -83,13 +87,8 @@ pub async fn send_request(
 
     #[cfg(feature = "scripting")]
     {
-        api_response = run_post_response_hooks(
-            dd,
-            &request,
-            api_response,
-            &env_vars,
-            active.active_environment_id.as_deref(),
-        )?;
+        api_response =
+            run_post_response_hooks(dd, &request, api_response, &env_vars, active_env_id)?;
     }
 
     db::history::add_entry(
@@ -472,39 +471,26 @@ fn apply_environment_updates(
     environment_id: &str,
     updates: HashMap<String, String>,
 ) -> AppResult<()> {
-    // We need to find the workspace for this environment to get variables
-    let ws_dir = dd.workspaces_dir();
-    if !ws_dir.exists() {
-        return Ok(());
-    }
-    for entry in std::fs::read_dir(&ws_dir)? {
-        let entry = entry?;
-        if !entry.file_type()?.is_dir() {
-            continue;
-        }
-        let ws_id = entry.file_name().to_string_lossy().to_string();
-        let mut vars = db::environments::list_variables(dd, &ws_id, environment_id)?;
-        if vars.is_empty() {
-            continue;
-        }
+    let (ws_id, col_id) = match db::environments::find_environment_location(dd, environment_id) {
+        Ok(loc) => loc,
+        Err(_) => return Ok(()),
+    };
+    let mut vars = db::environments::list_variables(dd, &ws_id, &col_id, environment_id)?;
 
-        for (key, value) in &updates {
-            match vars.iter_mut().find(|v| v.key == *key) {
-                Some(existing) => existing.value = value.clone(),
-                None => vars.push(crate::models::EnvironmentVariable {
-                    id: String::new(), // replace_variables fills in a fresh id
-                    environment_id: environment_id.to_string(),
-                    key: key.clone(),
-                    value: value.clone(),
-                    enabled: true,
-                    is_secret: false,
-                }),
-            }
+    for (key, value) in &updates {
+        match vars.iter_mut().find(|v| v.key == *key) {
+            Some(existing) => existing.value = value.clone(),
+            None => vars.push(veyak_models::EnvironmentVariable {
+                id: String::new(),
+                environmentid: environment_id.to_string(),
+                key: key.clone(),
+                value: value.clone(),
+                enabled: true,
+                is_secret: false,
+            }),
         }
-
-        db::environments::replace_variables(dd, environment_id, &vars)?;
-        return Ok(());
     }
 
+    db::environments::replace_variables(dd, environment_id, &vars)?;
     Ok(())
 }

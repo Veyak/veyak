@@ -300,6 +300,8 @@ pub struct Collection {
     pub workspace_id: String,
     pub name: String,
     pub sort_order: i64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub active_environment_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -400,7 +402,10 @@ pub struct EnvironmentVariable {
 #[ts(export, export_to = "models.ts")]
 pub struct Environment {
     pub id: String,
-    pub workspace_id: String,
+    #[serde(default)]
+    #[serde(alias = "workspaceId")]
+    #[serde(alias = "workspace_id")]
+    pub collection_id: String,
     pub name: String,
     pub sort_order: i64,
 }
@@ -787,6 +792,8 @@ pub struct ActiveState {
     pub active_collection_id: Option<String>,
     pub active_folder_id: Option<String>,
     pub active_item_id: Option<String>,
+    #[serde(default)]
+    pub collection_active_environments: std::collections::HashMap<String, String>,
 }
 
 impl Default for ActiveState {
@@ -798,6 +805,7 @@ impl Default for ActiveState {
             active_collection_id: None,
             active_folder_id: None,
             active_item_id: None,
+            collection_active_environments: std::collections::HashMap::new(),
         }
     }
 }

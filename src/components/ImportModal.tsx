@@ -76,12 +76,15 @@ const FORMAT_OPTIONS: {
   },
 ];
 
-export const ImportModal: React.FC<ImportModalProps> = ({ isMobile = false }) => {
+export const ImportModal: React.FC<ImportModalProps> = ({
+  isMobile = false,
+}) => {
   const isImportModalOpen = useWorkspaceStore((s) => s.isImportModalOpen);
   const closeImportModal = useWorkspaceStore((s) => s.closeImportModal);
   const importTargetCollectionId = useWorkspaceStore(
     (s) => s.importTargetCollectionId,
   );
+  const activeCollectionId = useWorkspaceStore((s) => s.activeCollectionId);
   const collections = useWorkspaceStore((s) => s.collections);
   const importDataContent = useWorkspaceStore((s) => s.importDataContent);
   const importFileContent = useWorkspaceStore((s) => s.importFileContent);
@@ -89,7 +92,9 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isMobile = false }) =>
 
   const [inputMode, setInputMode] = useState<"file" | "paste">("file");
   const [selectedFormat, setSelectedFormat] = useState<ImportFormat>("auto");
-  const [detectedFormat, setDetectedFormat] = useState<ImportFormat | null>(null);
+  const [detectedFormat, setDetectedFormat] = useState<ImportFormat | null>(
+    null,
+  );
 
   // File upload state
   const [selectedFilePath, setSelectedFilePath] = useState<string>("");
@@ -105,7 +110,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isMobile = false }) =>
     importTargetCollectionId ? "existing" : "new",
   );
   const [selectedCollectionId, setSelectedCollectionId] = useState<string>(
-    importTargetCollectionId || "",
+    importTargetCollectionId || activeCollectionId || collections[0]?.id || "",
   );
 
   // Status state
@@ -131,10 +136,15 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isMobile = false }) =>
         setSelectedCollectionId(importTargetCollectionId);
       } else {
         setTargetMode("new");
-        setSelectedCollectionId(collections[0]?.id || "");
+        setSelectedCollectionId(activeCollectionId || collections[0]?.id || "");
       }
     }
-  }, [isImportModalOpen, importTargetCollectionId, collections]);
+  }, [
+    isImportModalOpen,
+    importTargetCollectionId,
+    activeCollectionId,
+    collections,
+  ]);
 
   // Handle escape key
   useEffect(() => {
@@ -181,7 +191,10 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isMobile = false }) =>
         setError(null);
       }
     } catch (err) {
-      console.warn("Native file dialog failed, falling back to HTML input:", err);
+      console.warn(
+        "Native file dialog failed, falling back to HTML input:",
+        err,
+      );
       fileInputRef.current?.click();
     }
   };
@@ -233,8 +246,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isMobile = false }) =>
 
     const targetColId =
       targetMode === "existing" ? selectedCollectionId : undefined;
-    const formatToUse =
-      selectedFormat === "auto" ? undefined : selectedFormat;
+    const formatToUse = selectedFormat === "auto" ? undefined : selectedFormat;
 
     try {
       let result: ImportSummary;
@@ -271,7 +283,9 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isMobile = false }) =>
     >
       <div
         className={`relative w-full ${
-          isMobile ? "max-w-full h-full max-h-full rounded-none" : "max-w-2xl max-h-[90vh] rounded-2xl"
+          isMobile
+            ? "max-w-full h-full max-h-full rounded-none"
+            : "max-w-2xl max-h-[90vh] rounded-2xl"
         } bg-panel border border-border shadow-2xl overflow-hidden flex flex-col animate-scale-in`}
         onClick={(e) => e.stopPropagation()}
       >
@@ -531,7 +545,9 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isMobile = false }) =>
                       className="w-full p-3 rounded-xl bg-panel-raised border border-border text-text-primary text-xs font-mono placeholder:text-text-muted focus:outline-none focus:border-primary/60 transition-colors resize-none"
                     />
                     <div className="flex justify-between items-center text-[11px] text-text-muted px-1">
-                      <span>{rawContent.length.toLocaleString()} characters</span>
+                      <span>
+                        {rawContent.length.toLocaleString()} characters
+                      </span>
                       {rawContent.length > 0 && (
                         <button
                           type="button"
@@ -563,7 +579,9 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isMobile = false }) =>
                   >
                     <Layers
                       className={`w-4 h-4 mt-0.5 shrink-0 ${
-                        targetMode === "new" ? "text-primary" : "text-text-muted"
+                        targetMode === "new"
+                          ? "text-primary"
+                          : "text-text-muted"
                       }`}
                     />
                     <div>
@@ -602,7 +620,9 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isMobile = false }) =>
                       {targetMode === "existing" && collections.length > 0 ? (
                         <select
                           value={selectedCollectionId}
-                          onChange={(e) => setSelectedCollectionId(e.target.value)}
+                          onChange={(e) =>
+                            setSelectedCollectionId(e.target.value)
+                          }
                           className="mt-1.5 w-full bg-panel border border-border text-text-primary rounded-md px-2 py-1 text-xs focus:outline-none focus:border-primary/60"
                           onClick={(e) => e.stopPropagation()}
                         >
@@ -649,7 +669,9 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isMobile = false }) =>
               onClick={handleExecuteImport}
               disabled={
                 isProcessing ||
-                (inputMode === "file" && !selectedFileName && !selectedFilePath) ||
+                (inputMode === "file" &&
+                  !selectedFileName &&
+                  !selectedFilePath) ||
                 (inputMode === "paste" && !rawContent.trim())
               }
               className="px-5 py-2 rounded-xl bg-primary text-white text-xs font-semibold hover:bg-primary-hover transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
