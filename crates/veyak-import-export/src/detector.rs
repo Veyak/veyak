@@ -1,6 +1,6 @@
+use crate::insomnia::v5_importer::is_insomnia_v5_type_str;
 use serde_json::Value;
 use veyak_models::ImportFormat;
-use crate::insomnia::v5_importer::is_insomnia_v5_type_str;
 
 /// Automatically detect the import format from string content.
 pub fn detect_format(content: &str) -> ImportFormat {

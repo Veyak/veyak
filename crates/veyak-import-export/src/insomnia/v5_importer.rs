@@ -1,5 +1,5 @@
-use std::str::FromStr;
 use serde_json::Value;
+use std::str::FromStr;
 use uuid::Uuid;
 use veyak_error::{AppError, AppResult};
 use veyak_models::{
@@ -184,11 +184,8 @@ fn process_v5_items(
                 process_v5_items(reqs, Some(&folder_id), folders, requests);
             }
         } else {
-            let req_item = convert_v5_item_to_request(
-                &item,
-                parent_folder_id,
-                requests.len() as i64,
-            );
+            let req_item =
+                convert_v5_item_to_request(&item, parent_folder_id, requests.len() as i64);
             requests.push(req_item);
         }
     }
@@ -312,7 +309,11 @@ fn convert_v5_item_to_request(
     }
 
     // Check if WebSocket / SocketIO
-    let id_str = item.meta.as_ref().and_then(|m| m.id.as_deref()).unwrap_or("");
+    let id_str = item
+        .meta
+        .as_ref()
+        .and_then(|m| m.id.as_deref())
+        .unwrap_or("");
     let is_ws = id_str.starts_with("ws-req")
         || id_str.starts_with("socketio-req")
         || url.starts_with("ws://")
@@ -376,7 +377,10 @@ fn parse_v5_key_value_rows(rows_opt: Option<&Vec<Value>>) -> Vec<KeyValueRow> {
                     Some(Value::Bool(b)) => b.to_string(),
                     _ => String::new(),
                 };
-                let disabled = obj.get("disabled").and_then(|v| v.as_bool()).unwrap_or(false);
+                let disabled = obj
+                    .get("disabled")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false);
                 rows.push(KeyValueRow {
                     id: Uuid::new_v4().to_string(),
                     key: name.to_string(),
@@ -396,7 +400,10 @@ fn parse_v5_key_value_rows(rows_opt: Option<&Vec<Value>>) -> Vec<KeyValueRow> {
                             Some(Value::Bool(b)) => b.to_string(),
                             _ => String::new(),
                         };
-                        let d = inner.get("disabled").and_then(|x| x.as_bool()).unwrap_or(false);
+                        let d = inner
+                            .get("disabled")
+                            .and_then(|x| x.as_bool())
+                            .unwrap_or(false);
                         (v, d)
                     }
                     _ => (val.to_string(), false),
@@ -491,10 +498,18 @@ fn parse_v5_body(body_opt: Option<&Value>, default_mime: Option<&str>) -> Reques
 
 fn parse_v5_auth(auth_val_opt: Option<&Value>) -> AuthConfig {
     let mut config = AuthConfig::default();
-    let Some(val) = auth_val_opt else { return config };
-    let Some(obj) = val.as_object() else { return config };
+    let Some(val) = auth_val_opt else {
+        return config;
+    };
+    let Some(obj) = val.as_object() else {
+        return config;
+    };
 
-    if obj.get("disabled").and_then(|v| v.as_bool()).unwrap_or(false) {
+    if obj
+        .get("disabled")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false)
+    {
         return config;
     }
 
@@ -535,7 +550,11 @@ fn parse_v5_auth(auth_val_opt: Option<&Value>) -> AuthConfig {
                 _ => ApiKeyTarget::Header,
             };
             config.api_key = Some(ApiKeyAuth {
-                key: obj.get("key").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                key: obj
+                    .get("key")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string(),
                 value: obj
                     .get("value")
                     .and_then(|v| v.as_str())
