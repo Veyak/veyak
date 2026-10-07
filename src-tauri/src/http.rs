@@ -5,23 +5,24 @@ use std::time::{Duration, Instant};
 use tauri::State;
 
 use crate::db;
+use crate::scripting;
 use veyak_error::{AppError, AppResult};
 use veyak_models::{
     ApiKeyTarget, ApiRequest, ApiResponse, AppSettings, AuthType, BodyMode, CookieRow,
 };
 
-#[cfg(feature = "scripting")]
-use crate::models::PluginHook;
-
-/// Executes an `ApiRequest` end to end: runs `preRequest` plugin hooks,
-/// interpolates `{{variables}}` from the active environment, applies
-/// user settings (redirects, TLS validation, proxy, timeout) to the HTTP
-/// client, sends the request, runs `postResponse` plugin hooks, records
-/// a history entry, and returns the final `ApiResponse`.
+/// Executes an `ApiRequest` end to end:
+/// 1. Runs the per-request **pre-request script** (JavaScript via QuickJS).
+/// 2. Interpolates `{{variables}}` from the active environment.
+/// 3. Applies user settings (redirects, TLS, proxy, timeout).
+/// 4. Sends the HTTP request.
+/// 5. Runs the per-request **post-request script** to extract response data
+///    into environment variables.
+/// 6. Persists a history entry and returns the `ApiResponse`.
 #[tauri::command]
 pub async fn send_request(
     state: State<'_, AppState>,
-    request: ApiRequest,
+    mut request: ApiRequest,
 ) -> AppResult<ApiResponse> {
     let dd = &state.data_dir;
 
@@ -32,11 +33,32 @@ pub async fn send_request(
         .get(&request.collection_id)
         .map(String::as_str)
         .or(active.active_environment_id.as_deref());
-    let env_vars = db::environments::active_variable_map(dd, active_env_id)?;
+    let mut env_vars = db::environments::active_variable_map(dd, active_env_id)?;
 
-    #[cfg(feature = "scripting")]
-    {
-        request = run_pre_request_hooks(dd, request, &env_vars)?;
+    // ── Pre-request script ────────────────────────────────────────────────
+    match scripting::run_pre_request_script(request.clone(), &env_vars) {
+        Ok((updated_request, pre_result)) => {
+            request = updated_request;
+            // Apply env variable updates from pre-request script immediately
+            // so they're available during interpolation
+            for (k, v) in &pre_result.env_updates {
+                env_vars.insert(k.clone(), v.clone());
+            }
+            // Persist env updates if there are any
+            if !pre_result.env_updates.is_empty() {
+                if let Some(env_id) = active_env_id {
+                    if let Err(e) = apply_env_updates(dd, env_id, pre_result.env_updates) {
+                        log::warn!("Failed to persist pre-request env updates: {e}");
+                    }
+                }
+            }
+            if !pre_result.console_output.is_empty() {
+                log::info!("[pre-request script] {}", pre_result.console_output.join("\n"));
+            }
+        }
+        Err(e) => {
+            log::warn!("Pre-request script error (continuing): {e}");
+        }
     }
 
     let interpolated = interpolate_request(&request, &env_vars);
@@ -85,10 +107,30 @@ pub async fn send_request(
         body,
     };
 
-    #[cfg(feature = "scripting")]
-    {
-        api_response =
-            run_post_response_hooks(dd, &request, api_response, &env_vars, active_env_id)?;
+    // ── Post-request script ───────────────────────────────────────────────
+    match scripting::run_post_request_script(&request, &api_response, &env_vars) {
+        Ok(post_result) => {
+            if !post_result.env_updates.is_empty() {
+                if let Some(env_id) = active_env_id {
+                    if let Err(e) = apply_env_updates(dd, env_id, post_result.env_updates) {
+                        log::warn!("Failed to persist post-request env updates: {e}");
+                    }
+                }
+            }
+            if !post_result.console_output.is_empty() {
+                log::info!("[post-request script] {}", post_result.console_output.join("\n"));
+            }
+            for tr in &post_result.test_results {
+                if tr.passed {
+                    log::info!("[test PASS] {}", tr.name);
+                } else {
+                    log::warn!("[test FAIL] {} — {:?}", tr.name, tr.error);
+                }
+            }
+        }
+        Err(e) => {
+            log::warn!("Post-request script error: {e}");
+        }
     }
 
     db::history::add_entry(
@@ -370,110 +412,22 @@ fn describe_reqwest_error(e: &reqwest::Error) -> String {
     }
 }
 
-// ---------------------------------------------------------------------
-// Plugin hooks
-// ---------------------------------------------------------------------
 
-#[cfg(feature = "scripting")]
-fn run_pre_request_hooks(
-    dd: &DataDir,
-    request: ApiRequest,
-    env_vars: &HashMap<String, String>,
-) -> AppResult<ApiRequest> {
-    let plugins = db::plugins::list_enabled_plugins_with_source(dd)?;
-    let mut current = request;
+// ---------------------------------------------------------------------------
+// Environment update helper — shared by pre/post-request script runners
+// ---------------------------------------------------------------------------
 
-    for (manifest, source) in plugins {
-        if !manifest.hooks.contains(&PluginHook::PreRequest) {
-            continue;
-        }
-
-        let ctx = json!({ "request": current, "environment": env_vars });
-        let result = run_hook_sync(source, "preRequest", ctx)?;
-
-        if let Some(request_value) = result.get("request") {
-            current = serde_json::from_value(request_value.clone()).map_err(|e| {
-                AppError::Script(format!(
-                    "plugin '{}' returned an invalid request shape: {e}",
-                    manifest.id
-                ))
-            })?;
-        }
-    }
-
-    Ok(current)
-}
-
-#[cfg(feature = "scripting")]
-fn run_post_response_hooks(
-    dd: &DataDir,
-    request: &ApiRequest,
-    response: ApiResponse,
-    env_vars: &HashMap<String, String>,
-    active_environment_id: Option<&str>,
-) -> AppResult<ApiResponse> {
-    let plugins = db::plugins::list_enabled_plugins_with_source(dd)?;
-    let mut current = response;
-    let mut env_updates: HashMap<String, String> = HashMap::new();
-
-    for (manifest, source) in plugins {
-        if !manifest.hooks.contains(&PluginHook::PostResponse) {
-            continue;
-        }
-
-        let ctx = json!({ "request": request, "response": current, "environment": env_vars });
-        let result = run_hook_sync(source, "postResponse", ctx)?;
-
-        if let Some(response_value) = result.get("response") {
-            current = serde_json::from_value(response_value.clone()).map_err(|e| {
-                AppError::Script(format!(
-                    "plugin '{}' returned an invalid response shape: {e}",
-                    manifest.id
-                ))
-            })?;
-        }
-
-        // A plugin can hand back variables to persist into the active
-        // environment — e.g. pulling a fresh access token out of a login
-        // response so the next request picks it up automatically.
-        if let Some(set_vars) = result
-            .get("setEnvironmentVariables")
-            .and_then(Value::as_object)
-        {
-            for (key, value) in set_vars {
-                if let Some(value_str) = value.as_str() {
-                    env_updates.insert(key.clone(), value_str.to_string());
-                }
-            }
-        }
-    }
-
-    if !env_updates.is_empty() {
-        if let Some(env_id) = active_environment_id {
-            apply_environment_updates(dd, env_id, env_updates)?;
-        }
-    }
-
-    Ok(current)
-}
-
-#[cfg(feature = "scripting")]
-fn run_hook_sync(source: String, fn_name: &'static str, ctx: Value) -> AppResult<Value> {
-    // Run the script on the current thread (plugins are expected to be
-    // fast — the timeout guard has been dropped since we're now sync,
-    // but the overall send_request is still behind Tauri's async runtime).
-    crate::scripting::run_hook(&source, fn_name, &ctx)
-}
-
-#[cfg(feature = "scripting")]
-fn apply_environment_updates(
-    dd: &DataDir,
+pub fn apply_env_updates(
+    dd: &veyak_db::DataDir,
     environment_id: &str,
     updates: HashMap<String, String>,
-) -> AppResult<()> {
+) -> veyak_error::AppResult<()> {
+    if updates.is_empty() {
+        return Ok(());
+    }
     let (ws_id, col_id) = match db::environments::find_environment_location(dd, environment_id) {
         Ok(loc) => loc,
-        Err(_) => return Ok(()),
+        Err(_) => return Ok(()), // environment no longer exists — silently skip
     };
     let mut vars = db::environments::list_variables(dd, &ws_id, &col_id, environment_id)?;
 

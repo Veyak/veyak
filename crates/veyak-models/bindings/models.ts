@@ -8,7 +8,19 @@ export type ApiKeyAuth = { key: string, value: string, addTo: ApiKeyTarget, };
 
 export type ApiKeyTarget = "header" | "query";
 
-export type ApiRequest = { id: string, collectionId: string, folderId: string | null, sortOrder: bigint, name: string, method: HttpMethod, url: string, params: Array<KeyValueRow>, headers: Array<KeyValueRow>, cookies: Array<CookieRow>, auth: AuthConfig, body: RequestBody, };
+export type ApiRequest = { id: string, collectionId: string, folderId: string | null, sortOrder: bigint, name: string, method: HttpMethod, url: string, params: Array<KeyValueRow>, headers: Array<KeyValueRow>, cookies: Array<CookieRow>, auth: AuthConfig, body: RequestBody, 
+/**
+ * JavaScript snippet executed before the request is sent.
+ * Has access to `request` and `environment` objects.
+ * Can mutate the request or set env vars via `pm.environment.set("key", "value")`.
+ */
+preRequestScript?: string, 
+/**
+ * JavaScript snippet executed after the response is received.
+ * Has access to `request`, `response`, and `environment` objects.
+ * Can extract values and store them in env vars via `pm.environment.set("key", "value")`.
+ */
+postRequestScript?: string, };
 
 export type ApiResponse = { status: number, statusText: string, timeMs: bigint, sizeBytes: bigint, headers: { [key in string]: string }, cookies: Array<CookieRow>, body: string, };
 

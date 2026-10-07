@@ -40,6 +40,7 @@ pub mod db;
 mod error;
 mod http;
 mod models;
+mod scripting;
 mod state;
 pub mod ws;
 

@@ -192,6 +192,8 @@ fn convert_postman_request(
                 cookies: Vec::new(),
                 auth: AuthConfig::default(),
                 body: RequestBody::default(),
+                pre_request_script: None,
+                post_request_script: None,
             });
         }
         PostmanRequestUnion::Object(req) => req,
@@ -277,6 +279,8 @@ fn convert_postman_request(
         cookies: Vec::new(),
         auth,
         body,
+        pre_request_script: None,
+        post_request_script: None,
     })
 }
 

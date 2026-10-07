@@ -263,6 +263,8 @@ fn convert_insomnia_resource_to_request(
         cookies: Vec::new(),
         auth,
         body,
+        pre_request_script: None,
+        post_request_script: None,
     })
 }
 

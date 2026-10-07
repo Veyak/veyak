@@ -254,6 +254,18 @@ pub struct ApiRequest {
     pub cookies: Vec<CookieRow>,
     pub auth: AuthConfig,
     pub body: RequestBody,
+    /// JavaScript snippet executed before the request is sent.
+    /// Has access to `request` and `environment` objects.
+    /// Can mutate the request or set env vars via `pm.environment.set("key", "value")`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub pre_request_script: Option<String>,
+    /// JavaScript snippet executed after the response is received.
+    /// Has access to `request`, `response`, and `environment` objects.
+    /// Can extract values and store them in env vars via `pm.environment.set("key", "value")`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub post_request_script: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
