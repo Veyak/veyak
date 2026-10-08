@@ -8,9 +8,21 @@ export type ApiKeyAuth = { key: string, value: string, addTo: ApiKeyTarget, };
 
 export type ApiKeyTarget = "header" | "query";
 
-export type ApiRequest = { id: string, collectionId: string, folderId: string | null, sortOrder: bigint, name: string, method: HttpMethod, url: string, params: Array<KeyValueRow>, headers: Array<KeyValueRow>, cookies: Array<CookieRow>, auth: AuthConfig, body: RequestBody, };
+export type ApiRequest = { id: string, collectionId: string, folderId: string | null, sortOrder: bigint, name: string, method: HttpMethod, url: string, params: Array<KeyValueRow>, headers: Array<KeyValueRow>, cookies: Array<CookieRow>, auth: AuthConfig, body: RequestBody, 
+/**
+ * Script snippet executed before the request is sent.
+ * Has access to `request` and `environment` objects via the `veyak` namespace.
+ * Can mutate the request or set env vars via `veyak.environment.set("key", "value")`.
+ */
+preRequestScript?: string, preRequestLanguage?: ScriptLanguage, 
+/**
+ * Script snippet executed after the response is received.
+ * Has access to `request`, `response`, and `environment` objects via the `veyak` namespace.
+ * Can extract values and store them in env vars via `veyak.environment.set("key", "value")`.
+ */
+postRequestScript?: string, postRequestLanguage?: ScriptLanguage, };
 
-export type ApiResponse = { status: number, statusText: string, timeMs: bigint, sizeBytes: bigint, headers: { [key in string]: string }, cookies: Array<CookieRow>, body: string, };
+export type ApiResponse = { status: number, statusText: string, timeMs: bigint, sizeBytes: bigint, headers: { [key in string]: string }, cookies: Array<CookieRow>, body: string, consoleOutput?: Array<string>, testResults?: Array<ScriptTestResult>, envUpdates?: { [key in string]: string }, };
 
 export type AppSettings = { followRedirects: boolean, maxRedirects: number, 
 /**
@@ -237,6 +249,10 @@ includeDirs: Array<string>, };
 export type RequestBody = { mode: BodyMode | null, raw?: string, formData?: Array<KeyValueRow>, urlEncoded?: Array<KeyValueRow>, files?: Array<UploadedFile>, };
 
 export type RequestItem = { "type": "http" } & ApiRequest | { "type": "grpc" } & GrpcRequest | { "type": "graphql" } & GraphQlRequest;
+
+export type ScriptLanguage = "javascript" | "python" | "go" | "rust";
+
+export type ScriptTestResult = { name: string, passed: boolean, error: string | null, };
 
 export type Theme = { $schema: string, id: string, name: string, version: string, description: string, author: string, repository: string, license: string, tags: Array<string>, variant: ThemeVariant, isBuiltin: boolean, tokens: ThemeTokens, };
 

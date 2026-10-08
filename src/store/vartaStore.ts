@@ -323,7 +323,10 @@ export const useVartaStore = create<VartaState>((set, get) => ({
             activeTab: updatedTabs.find((t) => t.id === s.activeTabId) || null,
           };
         });
-        // setResponse(res);
+        // Auto-refresh environments if any variables were modified/saved by scripts
+        if (res.envUpdates && Object.keys(res.envUpdates).length > 0) {
+          useWorkspaceStore.getState().fetchEnvironments();
+        }
         get().fetchHistory();
       } catch (err) {
         console.error(err);

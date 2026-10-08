@@ -235,6 +235,26 @@ pub struct RequestBody {
     pub files: Option<Vec<UploadedFile>>,
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS, Default)]
+#[serde(rename_all = "lowercase")]
+#[ts(export, export_to = "models.ts")]
+pub enum ScriptLanguage {
+    #[default]
+    Javascript,
+    Python,
+    Go,
+    Rust,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "models.ts")]
+pub struct ScriptTestResult {
+    pub name: String,
+    pub passed: bool,
+    pub error: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "models.ts")]
@@ -254,6 +274,24 @@ pub struct ApiRequest {
     pub cookies: Vec<CookieRow>,
     pub auth: AuthConfig,
     pub body: RequestBody,
+    /// Script snippet executed before the request is sent.
+    /// Has access to `request` and `environment` objects via the `veyak` namespace.
+    /// Can mutate the request or set env vars via `veyak.environment.set("key", "value")`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub pre_request_script: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub pre_request_language: Option<ScriptLanguage>,
+    /// Script snippet executed after the response is received.
+    /// Has access to `request`, `response`, and `environment` objects via the `veyak` namespace.
+    /// Can extract values and store them in env vars via `veyak.environment.set("key", "value")`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub post_request_script: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub post_request_language: Option<ScriptLanguage>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -267,6 +305,15 @@ pub struct ApiResponse {
     pub headers: BTreeMap<String, String>,
     pub cookies: Vec<CookieRow>,
     pub body: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub console_output: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub test_results: Option<Vec<ScriptTestResult>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub env_updates: Option<BTreeMap<String, String>>,
 }
 
 // ---------------------------------------------------------------------

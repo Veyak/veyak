@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, CheckCircle2, XCircle, Terminal, Sparkles } from "lucide-react";
 import CodeEditor from "../../CodeEditor";
 import ResponseMetricsBar from "./ResponseMetricsBar";
 import { RequestTab } from "../../../types";
@@ -11,7 +11,7 @@ interface StaticResponseViewerProps {
   isMobile?: boolean;
 }
 
-type SubTab = "body" | "headers" | "cookies";
+type SubTab = "body" | "headers" | "cookies" | "scripts";
 
 export default function StaticResponseViewer({
   tab,
@@ -147,6 +147,12 @@ export default function StaticResponseViewer({
 
   const headerEntries = Object.entries(headers);
 
+  const testResults = httpResponse?.testResults ?? [];
+  const consoleOutput = httpResponse?.consoleOutput ?? [];
+  const envUpdates = httpResponse?.envUpdates ?? {};
+  const envUpdateEntries = Object.entries(envUpdates);
+  const passedTestsCount = testResults.filter((t) => t.passed).length;
+
   // Subtabs configuration
   const subTabs: { id: SubTab; label: string; count?: number }[] = [
     { id: "body", label: "Body" },
@@ -162,6 +168,11 @@ export default function StaticResponseViewer({
       id: "cookies",
       label: "Cookies",
       count: cookies.length,
+    });
+    subTabs.push({
+      id: "scripts",
+      label: "Tests & Logs",
+      count: testResults.length > 0 ? testResults.length : undefined,
     });
   }
 
@@ -327,6 +338,111 @@ export default function StaticResponseViewer({
                 </tbody>
               </table>
             )}
+          </div>
+        )}
+
+        {/* Scripts, Tests & Logs Viewer */}
+        {activeSubTab === "scripts" && (
+          <div className="h-full overflow-y-auto p-4 space-y-4">
+            {/* Saved Environment Variables */}
+            {envUpdateEntries.length > 0 && (
+              <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3">
+                <div className="flex items-center gap-2 mb-2 text-xs font-semibold text-emerald-400">
+                  <Sparkles size={14} />
+                  <span>Saved to Environment ({envUpdateEntries.length})</span>
+                </div>
+                <div className="space-y-1.5">
+                  {envUpdateEntries.map(([key, val]) => (
+                    <div
+                      key={key}
+                      className="flex items-center justify-between rounded bg-panel/60 border border-border/60 px-3 py-1.5 text-xs font-mono"
+                    >
+                      <span className="text-primary font-semibold">{key}</span>
+                      <span className="text-text-muted max-w-[65%] truncate" title={val}>
+                        {val}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Test Assertions */}
+            {testResults.length > 0 && (
+              <div className="rounded-lg border border-border bg-panel/40 p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-xs font-semibold text-text-primary">
+                    Test Results
+                  </div>
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="text-emerald-400 font-medium">
+                      ✓ {passedTestsCount} passed
+                    </span>
+                    {testResults.length - passedTestsCount > 0 && (
+                      <span className="text-red-400 font-medium">
+                        ✗ {testResults.length - passedTestsCount} failed
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  {testResults.map((tr, idx) => (
+                    <div
+                      key={idx}
+                      className={`flex items-start gap-2 rounded border px-3 py-2 text-xs ${
+                        tr.passed
+                          ? "bg-emerald-500/5 border-emerald-500/20 text-text-primary"
+                          : "bg-red-500/5 border-red-500/30 text-red-300"
+                      }`}
+                    >
+                      {tr.passed ? (
+                        <CheckCircle2 size={15} className="text-emerald-400 shrink-0 mt-0.5" />
+                      ) : (
+                        <XCircle size={15} className="text-red-400 shrink-0 mt-0.5" />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium">{tr.name}</div>
+                        {tr.error && (
+                          <div className="mt-0.5 text-[11px] font-mono text-red-400 opacity-90 break-words">
+                            {tr.error}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Console Log Stream */}
+            {consoleOutput.length > 0 && (
+              <div className="rounded-lg border border-border bg-black/40 p-3">
+                <div className="flex items-center gap-1.5 mb-2 text-xs font-semibold text-text-muted">
+                  <Terminal size={14} className="text-primary" />
+                  <span>Console Output</span>
+                </div>
+                <pre className="font-mono text-xs text-text-secondary whitespace-pre-wrap leading-relaxed space-y-0.5 max-h-60 overflow-y-auto">
+                  {consoleOutput.map((line, idx) => (
+                    <div key={idx} className="hover:bg-white/5 px-1 rounded">
+                      {line}
+                    </div>
+                  ))}
+                </pre>
+              </div>
+            )}
+
+            {/* Empty State */}
+            {testResults.length === 0 &&
+              consoleOutput.length === 0 &&
+              envUpdateEntries.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-12 text-center text-xs text-text-muted">
+                  <Terminal size={24} className="mb-2 text-text-muted/40" />
+                  <p>No tests or script logs for this request.</p>
+                  <p className="mt-1 text-[11px] text-text-muted/70">
+                    Add assertions or logs in the request <strong>Scripts</strong> tab.
+                  </p>
+                </div>
+              )}
           </div>
         )}
       </div>

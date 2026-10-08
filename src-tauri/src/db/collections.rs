@@ -437,6 +437,10 @@ pub fn create_request(
         cookies: vec![],
         auth: AuthConfig::default(),
         body: RequestBody::default(),
+        pre_request_script: None,
+        pre_request_language: None,
+        post_request_script: None,
+        post_request_language: None,
     };
     let req = RequestItem::Http(request.clone());
     save_request(dd, &req)?;
@@ -462,6 +466,10 @@ pub fn create_ws_request(
         cookies: vec![],
         auth: AuthConfig::default(),
         body: RequestBody::default(),
+        pre_request_script: None,
+        pre_request_language: None,
+        post_request_script: None,
+        post_request_language: None,
     };
     let req = RequestItem::Http(request.clone());
     save_request(dd, &req)?;

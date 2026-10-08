@@ -103,3 +103,15 @@ pub async fn set_active_environment(
         environmentid.as_deref(),
     )
 }
+
+#[tauri::command]
+pub async fn set_env_variable(
+    state: State<'_, AppState>,
+    environmentid: String,
+    key: String,
+    value: String,
+) -> AppResult<()> {
+    let mut map = std::collections::HashMap::new();
+    map.insert(key, value);
+    crate::http::apply_env_updates(&state.data_dir, &environmentid, map)
+}
