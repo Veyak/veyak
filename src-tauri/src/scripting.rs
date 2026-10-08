@@ -289,7 +289,11 @@ fn execute_quickjs(
                     Err(e) => (false, Some(e.to_string())),
                 };
                 if let Ok(mut g) = tr.lock() {
-                    g.push(ScriptTestResult { name, passed, error });
+                    g.push(ScriptTestResult {
+                        name,
+                        passed,
+                        error,
+                    });
                 }
                 Ok(())
             },
@@ -731,7 +735,12 @@ fn main() {{
     let _ = std::fs::write(src_dir.join("main.rs"), main_rs);
 
     let output = Command::new("cargo")
-        .args(["run", "--quiet", "--manifest-path", temp_dir.join("Cargo.toml").to_str().unwrap()])
+        .args([
+            "run",
+            "--quiet",
+            "--manifest-path",
+            temp_dir.join("Cargo.toml").to_str().unwrap(),
+        ])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .output()
@@ -779,7 +788,9 @@ fn parse_external_output(stdout: &str, stderr: &str) -> AppResult<ScriptResult> 
     }
 
     if !stderr.trim().is_empty() {
-        return Err(AppError::Script(format!("Script execution error: {stderr}")));
+        return Err(AppError::Script(format!(
+            "Script execution error: {stderr}"
+        )));
     }
 
     Ok(ScriptResult {
@@ -853,7 +864,10 @@ mod tests {
             result.env_updates.get("token").map(String::as_str),
             Some("pre_token_abc")
         );
-        assert!(result.console_output.iter().any(|l| l.contains("Pre-request executed")));
+        assert!(result
+            .console_output
+            .iter()
+            .any(|l| l.contains("Pre-request executed")));
     }
 
     #[test]
@@ -915,7 +929,10 @@ print("Extracted token from Python")
         );
         assert_eq!(result.test_results.len(), 1);
         assert!(result.test_results[0].passed);
-        assert!(result.console_output.iter().any(|l| l.contains("Extracted token from Python")));
+        assert!(result
+            .console_output
+            .iter()
+            .any(|l| l.contains("Extracted token from Python")));
     }
 
     #[test]
@@ -949,7 +966,10 @@ print("Extracted token from Python")
         );
         assert_eq!(result.test_results.len(), 1);
         assert!(result.test_results[0].passed);
-        assert!(result.console_output.iter().any(|l| l.contains("Go script executed successfully")));
+        assert!(result
+            .console_output
+            .iter()
+            .any(|l| l.contains("Go script executed successfully")));
     }
 
     #[test]
@@ -980,6 +1000,9 @@ print("Extracted token from Python")
         );
         assert_eq!(result.test_results.len(), 1);
         assert!(result.test_results[0].passed);
-        assert!(result.console_output.iter().any(|l| l.contains("Rust script executed successfully")));
+        assert!(result
+            .console_output
+            .iter()
+            .any(|l| l.contains("Rust script executed successfully")));
     }
 }

@@ -38,12 +38,17 @@ pub async fn send_request(
     // If no environment is currently selected, check if one exists in the collection or create Default
     if target_env_id.is_none() && !request.collection_id.is_empty() {
         if let Ok(ws_id) = db::collections::find_collection_workspace(dd, &request.collection_id) {
-            if let Ok(envs) = db::environments::list_environments(dd, &ws_id, &request.collection_id) {
+            if let Ok(envs) =
+                db::environments::list_environments(dd, &ws_id, &request.collection_id)
+            {
                 if let Some(first) = envs.first() {
                     target_env_id = Some(first.environment.id.clone());
-                } else if let Ok(new_env) =
-                    db::environments::create_environment(dd, &ws_id, &request.collection_id, "Default")
-                {
+                } else if let Ok(new_env) = db::environments::create_environment(
+                    dd,
+                    &ws_id,
+                    &request.collection_id,
+                    "Default",
+                ) {
                     let _ = db::app_state::set_active_environment(
                         dd,
                         Some(&request.collection_id),
@@ -446,7 +451,6 @@ fn describe_reqwest_error(e: &reqwest::Error) -> String {
         e.to_string()
     }
 }
-
 
 // ---------------------------------------------------------------------------
 // Environment update helper — shared by pre/post-request script runners
