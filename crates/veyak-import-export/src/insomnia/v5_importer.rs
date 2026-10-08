@@ -348,7 +348,9 @@ fn convert_v5_item_to_request(
         auth,
         body,
         pre_request_script: None,
+        pre_request_language: None,
         post_request_script: None,
+        post_request_language: None,
     })
 }
 

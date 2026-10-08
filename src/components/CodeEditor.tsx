@@ -3,6 +3,10 @@ import { CodeJar } from "codejar";
 import Prism from "prismjs";
 import "prismjs/components/prism-json";
 import "prismjs/components/prism-graphql";
+import "prismjs/components/prism-javascript";
+import "prismjs/components/prism-python";
+import "prismjs/components/prism-go";
+import "prismjs/components/prism-rust";
 
 import { useSettingsStore, DEFAULT_FONT_SETTINGS } from "../store/settingStore";
 

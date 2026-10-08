@@ -264,7 +264,9 @@ fn convert_yaak_http_request(req: YaakHttpRequest, sort_order: i64) -> RequestIt
         auth,
         body,
         pre_request_script: None,
+        pre_request_language: None,
         post_request_script: None,
+        post_request_language: None,
     })
 }
 

@@ -193,7 +193,9 @@ fn convert_postman_request(
                 auth: AuthConfig::default(),
                 body: RequestBody::default(),
                 pre_request_script: None,
+                pre_request_language: None,
                 post_request_script: None,
+                post_request_language: None,
             });
         }
         PostmanRequestUnion::Object(req) => req,
@@ -280,7 +282,9 @@ fn convert_postman_request(
         auth,
         body,
         pre_request_script: None,
+        pre_request_language: None,
         post_request_script: None,
+        post_request_language: None,
     })
 }
 

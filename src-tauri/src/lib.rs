@@ -12,7 +12,7 @@ use crate::commands::collections::{
 };
 use crate::commands::environments::{
     create_environment, delete_environment, list_environments, list_variables, rename_environment,
-    replace_variables, set_active_environment,
+    replace_variables, set_active_environment, set_env_variable,
 };
 use crate::commands::settings::{self, get_settings, update_settings};
 use crate::commands::workspaces::{
@@ -250,6 +250,7 @@ pub fn run() {
             list_variables,
             replace_variables,
             set_active_environment,
+            set_env_variable,
             // WebSocket commands
             ws_connect,
             ws_send,

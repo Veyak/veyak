@@ -28,35 +28,60 @@ pub async fn send_request(
 
     let settings = db::settings::get_settings(dd)?;
     let active = db::app_state::get_active_state(dd)?;
-    let active_env_id = active
+
+    let mut target_env_id = active
         .collection_active_environments
         .get(&request.collection_id)
-        .map(String::as_str)
-        .or(active.active_environment_id.as_deref());
-    let mut env_vars = db::environments::active_variable_map(dd, active_env_id)?;
+        .cloned()
+        .or(active.active_environment_id.clone());
+
+    // If no environment is currently selected, check if one exists in the collection or create Default
+    if target_env_id.is_none() && !request.collection_id.is_empty() {
+        if let Ok(ws_id) = db::collections::find_collection_workspace(dd, &request.collection_id) {
+            if let Ok(envs) = db::environments::list_environments(dd, &ws_id, &request.collection_id) {
+                if let Some(first) = envs.first() {
+                    target_env_id = Some(first.environment.id.clone());
+                } else if let Ok(new_env) =
+                    db::environments::create_environment(dd, &ws_id, &request.collection_id, "Default")
+                {
+                    let _ = db::app_state::set_active_environment(
+                        dd,
+                        Some(&request.collection_id),
+                        Some(&new_env.id),
+                    );
+                    target_env_id = Some(new_env.id);
+                }
+            }
+        }
+    }
+
+    let mut env_vars = db::environments::active_variable_map(dd, target_env_id.as_deref())?;
+
+    let mut all_console_output = Vec::new();
+    let mut all_test_results = Vec::new();
+    let mut all_env_updates = HashMap::new();
 
     // ── Pre-request script ────────────────────────────────────────────────
     match scripting::run_pre_request_script(request.clone(), &env_vars) {
         Ok((updated_request, pre_result)) => {
             request = updated_request;
-            // Apply env variable updates from pre-request script immediately
-            // so they're available during interpolation
             for (k, v) in &pre_result.env_updates {
                 env_vars.insert(k.clone(), v.clone());
+                all_env_updates.insert(k.clone(), v.clone());
             }
-            // Persist env updates if there are any
+            all_console_output.extend(pre_result.console_output);
+            all_test_results.extend(pre_result.test_results);
+
             if !pre_result.env_updates.is_empty() {
-                if let Some(env_id) = active_env_id {
+                if let Some(ref env_id) = target_env_id {
                     if let Err(e) = apply_env_updates(dd, env_id, pre_result.env_updates) {
                         log::warn!("Failed to persist pre-request env updates: {e}");
                     }
                 }
             }
-            if !pre_result.console_output.is_empty() {
-                log::info!("[pre-request script] {}", pre_result.console_output.join("\n"));
-            }
         }
         Err(e) => {
+            all_console_output.push(format!("[pre-request error] {e}"));
             log::warn!("Pre-request script error (continuing): {e}");
         }
     }
@@ -97,7 +122,7 @@ pub async fn send_request(
     let size_bytes = bytes.len() as u64;
     let body = String::from_utf8_lossy(&bytes).to_string();
 
-    let api_response = ApiResponse {
+    let mut api_response = ApiResponse {
         status: status.as_u16(),
         status_text,
         time_ms: elapsed.as_millis(),
@@ -105,32 +130,42 @@ pub async fn send_request(
         headers,
         cookies,
         body,
+        console_output: None,
+        test_results: None,
+        env_updates: None,
     };
 
     // ── Post-request script ───────────────────────────────────────────────
     match scripting::run_post_request_script(&request, &api_response, &env_vars) {
         Ok(post_result) => {
+            for (k, v) in &post_result.env_updates {
+                all_env_updates.insert(k.clone(), v.clone());
+            }
+            all_console_output.extend(post_result.console_output);
+            all_test_results.extend(post_result.test_results);
+
             if !post_result.env_updates.is_empty() {
-                if let Some(env_id) = active_env_id {
+                if let Some(ref env_id) = target_env_id {
                     if let Err(e) = apply_env_updates(dd, env_id, post_result.env_updates) {
                         log::warn!("Failed to persist post-request env updates: {e}");
                     }
                 }
             }
-            if !post_result.console_output.is_empty() {
-                log::info!("[post-request script] {}", post_result.console_output.join("\n"));
-            }
-            for tr in &post_result.test_results {
-                if tr.passed {
-                    log::info!("[test PASS] {}", tr.name);
-                } else {
-                    log::warn!("[test FAIL] {} — {:?}", tr.name, tr.error);
-                }
-            }
         }
         Err(e) => {
+            all_console_output.push(format!("[post-request error] {e}"));
             log::warn!("Post-request script error: {e}");
         }
+    }
+
+    if !all_console_output.is_empty() {
+        api_response.console_output = Some(all_console_output);
+    }
+    if !all_test_results.is_empty() {
+        api_response.test_results = Some(all_test_results);
+    }
+    if !all_env_updates.is_empty() {
+        api_response.env_updates = Some(all_env_updates.into_iter().collect());
     }
 
     db::history::add_entry(

@@ -9,6 +9,7 @@ import GraphQlQueryTab from "./tabs/GraphQlQueryTab";
 import GrpcMessageTab from "./tabs/GrpcMessageTab";
 import WsSavedTab from "./tabs/WsSavedTab";
 import CookiesTab from "./tabs/CookiesTab";
+import ScriptsTab from "./tabs/ScriptsTab";
 import CodeEditor from "../../CodeEditor";
 
 interface UnifiedRequestPanelProps {
@@ -22,6 +23,7 @@ type SubTabId =
   | "cookies"
   | "auth"
   | "body"
+  | "scripts"
   | "saved"
   | "query"
   | "variables"
@@ -128,6 +130,10 @@ export default function UnifiedRequestPanel({
     const activeHeaderCount = httpReq?.headers?.filter((h) => h.key.trim()).length || 0;
     const activeCookieCount = httpReq?.cookies?.length || 0;
 
+    const hasScripts =
+      Boolean(httpReq?.preRequestScript?.trim()) ||
+      Boolean(httpReq?.postRequestScript?.trim());
+
     return [
       {
         id: "params",
@@ -154,6 +160,11 @@ export default function UnifiedRequestPanel({
           tab.request.auth && tab.request.auth.type !== "none"
             ? tab.request.auth.type
             : undefined,
+      },
+      {
+        id: "scripts",
+        label: "Scripts",
+        badge: hasScripts ? "●" : undefined,
       },
       {
         id: "cookies",
@@ -249,6 +260,18 @@ export default function UnifiedRequestPanel({
           <AuthTab
             auth={tab.request.auth}
             onChange={(auth) => updateActiveRequest({ auth })}
+            isMobile={isMobile}
+          />
+        )}
+
+        {/* REST Scripts (Pre/Post) */}
+        {activeSubTab === "scripts" && (
+          <ScriptsTab
+            preRequestScript={httpReq?.preRequestScript}
+            preRequestLanguage={httpReq?.preRequestLanguage}
+            postRequestScript={httpReq?.postRequestScript}
+            postRequestLanguage={httpReq?.postRequestLanguage}
+            onChange={(patch) => updateActiveRequest(patch)}
             isMobile={isMobile}
           />
         )}
