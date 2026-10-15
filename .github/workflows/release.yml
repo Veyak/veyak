@@ -62,37 +62,42 @@ jobs:
           fi
           
           # Create and push the Git Tag
-          git tag ${{ steps.extract.outputs.tag }}
-          git push origin ${{ steps.extract.outputs.tag }}
+          TAG="${{ steps.extract.outputs.tag }}"
+          git tag -f "$TAG"
+          git push origin "$TAG" --force
 
       - name: Generate Release Notes
         id: notes
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RAW_PR_BODY: ${{ github.event.pull_request.body }}
+          REPO: ${{ github.repository }}
         run: |
           TAG="${{ steps.extract.outputs.tag }}"
 
           # Fetch auto-generated changelog from GitHub API
-          CHANGELOG=$(gh api /repos/${{ github.repository }}/releases/generate-notes -f tag_name="$TAG" --jq .body || true)
+          CHANGELOG=$(gh api "/repos/$REPO/releases/generate-notes" -f tag_name="$TAG" --jq .body || true)
 
-          PR_BODY="${{ github.event.pull_request.body }}"
-          PR_BODY_TRIMMED=$(echo "$PR_BODY" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+          PR_BODY="${RAW_PR_BODY:-}"
+          HAS_PR_BODY=$(printf '%s' "$PR_BODY" | tr -d '[:space:]')
+          HAS_CHANGELOG=$(printf '%s' "$CHANGELOG" | tr -d '[:space:]')
 
-          if [ -n "$PR_BODY_TRIMMED" ]; then
-            NOTES="## 📦 Release Description"$'\n\n'"$PR_BODY_TRIMMED"$'\n\n'"---"$'\n\n'"$CHANGELOG"
-          else
+          if [ -n "$HAS_PR_BODY" ] && [ -n "$HAS_CHANGELOG" ]; then
+            NOTES=$(printf "%s\n\n%s\n\n---\n\n%s" "## 📦 Release Description" "$PR_BODY" "$CHANGELOG")
+          elif [ -n "$HAS_PR_BODY" ]; then
+            NOTES=$(printf "%s\n\n%s" "## 📦 Release Description" "$PR_BODY")
+          elif [ -n "$HAS_CHANGELOG" ]; then
             NOTES="$CHANGELOG"
-          fi
-
-          if [ -z "$NOTES" ]; then
+          else
             NOTES="Release $TAG"
           fi
 
+          EOF_DELIMITER=$(openssl rand -hex 8)
           {
-            echo "release_body<<EOF"
-            echo "$NOTES"
-            echo "EOF"
-          } >> $GITHUB_OUTPUT
+            echo "release_body<<$EOF_DELIMITER"
+            printf '%s\n' "$NOTES"
+            echo "$EOF_DELIMITER"
+          } >> "$GITHUB_OUTPUT"
 
   # ==========================================
   # JOB 2: Build Matrix & Publish to GitHub
