@@ -1,4 +1,4 @@
-use reqwest::header::{HeaderMap, HeaderName, HeaderValue, CONTENT_TYPE, SET_COOKIE};
+use reqwest::header::{HeaderMap, HeaderName, HeaderValue, CONTENT_TYPE, COOKIE, SET_COOKIE};
 use serde_json::Value;
 use std::collections::{BTreeMap, HashMap};
 use std::time::{Duration, Instant};
@@ -220,8 +220,9 @@ fn build_client(settings: &AppSettings) -> AppResult<reqwest::Client> {
 }
 
 /// Returns a copy of `request` with `{{variables}}` resolved in the URL,
-/// enabled header/param values, and the raw body. Disabled rows are left
-/// alone since they won't be sent anyway.
+/// enabled header/param values, form-data, url-encoded rows, cookies,
+/// auth fields, and the raw body. Disabled rows are left alone since they
+/// won't be sent anyway.
 pub fn interpolate_request(request: &ApiRequest, vars: &HashMap<String, String>) -> ApiRequest {
     let mut next = request.clone();
 
@@ -233,11 +234,36 @@ pub fn interpolate_request(request: &ApiRequest, vars: &HashMap<String, String>)
     for row in next.params.iter_mut().filter(|r| r.enabled) {
         row.value = db::environments::interpolate(&row.value, vars);
     }
+    for row in next.cookies.iter_mut() {
+        row.name = db::environments::interpolate(&row.name, vars);
+        row.value = db::environments::interpolate(&row.value, vars);
+        row.domain = db::environments::interpolate(&row.domain, vars);
+    }
     if let Some(raw) = next.body.raw.as_mut() {
         *raw = db::environments::interpolate(raw, vars);
     }
+    if let Some(rows) = next.body.form_data.as_mut() {
+        for row in rows.iter_mut().filter(|r| r.enabled) {
+            row.key = db::environments::interpolate(&row.key, vars);
+            row.value = db::environments::interpolate(&row.value, vars);
+        }
+    }
+    if let Some(rows) = next.body.url_encoded.as_mut() {
+        for row in rows.iter_mut().filter(|r| r.enabled) {
+            row.key = db::environments::interpolate(&row.key, vars);
+            row.value = db::environments::interpolate(&row.value, vars);
+        }
+    }
+    if let Some(basic) = next.auth.basic.as_mut() {
+        basic.username = db::environments::interpolate(&basic.username, vars);
+        basic.password = db::environments::interpolate(&basic.password, vars);
+    }
     if let Some(bearer) = next.auth.bearer.as_mut() {
         bearer.token = db::environments::interpolate(&bearer.token, vars);
+    }
+    if let Some(api_key) = next.auth.api_key.as_mut() {
+        api_key.key = db::environments::interpolate(&api_key.key, vars);
+        api_key.value = db::environments::interpolate(&api_key.value, vars);
     }
 
     next
@@ -299,6 +325,24 @@ fn apply_headers(
             if api_key.add_to == ApiKeyTarget::Header && !api_key.key.is_empty() {
                 builder = builder.header(api_key.key.clone(), api_key.value.clone());
             }
+        }
+    }
+
+    let has_cookie_header = request
+        .headers
+        .iter()
+        .any(|r| r.enabled && r.key.eq_ignore_ascii_case("cookie"));
+
+    if !has_cookie_header && !request.cookies.is_empty() {
+        let cookie_str = request
+            .cookies
+            .iter()
+            .filter(|c| !c.name.trim().is_empty())
+            .map(|c| format!("{}={}", c.name, c.value))
+            .collect::<Vec<_>>()
+            .join("; ");
+        if !cookie_str.is_empty() {
+            builder = builder.header(COOKIE, cookie_str);
         }
     }
 
@@ -486,4 +530,179 @@ pub fn apply_env_updates(
 
     db::environments::replace_variables(dd, environment_id, &vars)?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use veyak_models::{
+        ApiKeyAuth, ApiKeyTarget, AuthConfig, AuthType, BasicAuth, BearerAuth, BodyMode, CookieRow,
+        HttpMethod, KeyValueRow, RequestBody,
+    };
+
+    fn make_test_request() -> ApiRequest {
+        ApiRequest {
+            id: "req-1".into(),
+            collection_id: "col-1".into(),
+            folder_id: None,
+            sort_order: 0,
+            name: "Test Request".into(),
+            method: HttpMethod::Post,
+            url: "https://{{host}}/api/{{path}}".into(),
+            params: vec![
+                KeyValueRow {
+                    id: "p1".into(),
+                    key: "query".into(),
+                    value: "{{search_term}}".into(),
+                    enabled: true,
+                },
+                KeyValueRow {
+                    id: "p2".into(),
+                    key: "disabled_param".into(),
+                    value: "{{should_not_interpolate}}".into(),
+                    enabled: false,
+                },
+            ],
+            headers: vec![
+                KeyValueRow {
+                    id: "h1".into(),
+                    key: "X-Custom".into(),
+                    value: "Bearer {{custom_token}}".into(),
+                    enabled: true,
+                },
+                KeyValueRow {
+                    id: "h2".into(),
+                    key: "X-Disabled".into(),
+                    value: "{{should_not_interpolate}}".into(),
+                    enabled: false,
+                },
+            ],
+            cookies: vec![CookieRow {
+                id: "c1".into(),
+                name: "session_{{env_name}}".into(),
+                value: "{{session_val}}".into(),
+                domain: "{{domain}}".into(),
+            }],
+            auth: AuthConfig {
+                auth_type: AuthType::Basic,
+                basic: Some(BasicAuth {
+                    username: "{{basic_user}}".into(),
+                    password: "{{basic_pass}}".into(),
+                }),
+                bearer: Some(BearerAuth {
+                    token: "{{bearer_token}}".into(),
+                }),
+                api_key: Some(ApiKeyAuth {
+                    key: "{{api_header}}".into(),
+                    value: "{{api_secret}}".into(),
+                    add_to: ApiKeyTarget::Header,
+                }),
+            },
+            body: RequestBody {
+                mode: Some(BodyMode::FormData),
+                raw: Some(r#"{"user": "{{raw_user}}"}"#.into()),
+                form_data: Some(vec![
+                    KeyValueRow {
+                        id: "f1".into(),
+                        key: "field_{{env_name}}".into(),
+                        value: "{{form_val}}".into(),
+                        enabled: true,
+                    },
+                    KeyValueRow {
+                        id: "f2".into(),
+                        key: "disabled_key".into(),
+                        value: "{{disabled_val}}".into(),
+                        enabled: false,
+                    },
+                ]),
+                url_encoded: Some(vec![
+                    KeyValueRow {
+                        id: "u1".into(),
+                        key: "url_{{env_name}}".into(),
+                        value: "{{url_val}}".into(),
+                        enabled: true,
+                    },
+                    KeyValueRow {
+                        id: "u2".into(),
+                        key: "disabled_url_key".into(),
+                        value: "{{disabled_url_val}}".into(),
+                        enabled: false,
+                    },
+                ]),
+                files: None,
+            },
+            pre_request_script: None,
+            pre_request_language: None,
+            post_request_script: None,
+            post_request_language: None,
+        }
+    }
+
+    #[test]
+    fn test_interpolate_request_all_fields() {
+        let mut vars = HashMap::new();
+        vars.insert("host".into(), "api.example.com".into());
+        vars.insert("path".into(), "v1/users".into());
+        vars.insert("search_term".into(), "alice".into());
+        vars.insert("custom_token".into(), "token123".into());
+        vars.insert("env_name".into(), "prod".into());
+        vars.insert("session_val".into(), "sess_abc".into());
+        vars.insert("domain".into(), "example.com".into());
+        vars.insert("basic_user".into(), "admin".into());
+        vars.insert("basic_pass".into(), "secretpassword".into());
+        vars.insert("bearer_token".into(), "my_bearer".into());
+        vars.insert("api_header".into(), "X-Api-Key".into());
+        vars.insert("api_secret".into(), "secret_key_456".into());
+        vars.insert("raw_user".into(), "bob".into());
+        vars.insert("form_val".into(), "form_data_value".into());
+        vars.insert("url_val".into(), "url_encoded_value".into());
+
+        let req = make_test_request();
+        let interpolated = interpolate_request(&req, &vars);
+
+        // URL
+        assert_eq!(interpolated.url, "https://api.example.com/api/v1/users");
+
+        // Params
+        assert_eq!(interpolated.params[0].value, "alice");
+        assert_eq!(interpolated.params[1].value, "{{should_not_interpolate}}");
+
+        // Headers
+        assert_eq!(interpolated.headers[0].value, "Bearer token123");
+        assert_eq!(interpolated.headers[1].value, "{{should_not_interpolate}}");
+
+        // Cookies
+        assert_eq!(interpolated.cookies[0].name, "session_prod");
+        assert_eq!(interpolated.cookies[0].value, "sess_abc");
+        assert_eq!(interpolated.cookies[0].domain, "example.com");
+
+        // Auth: Basic
+        let basic = interpolated.auth.basic.unwrap();
+        assert_eq!(basic.username, "admin");
+        assert_eq!(basic.password, "secretpassword");
+
+        // Auth: Bearer
+        let bearer = interpolated.auth.bearer.unwrap();
+        assert_eq!(bearer.token, "my_bearer");
+
+        // Auth: ApiKey
+        let api_key = interpolated.auth.api_key.unwrap();
+        assert_eq!(api_key.key, "X-Api-Key");
+        assert_eq!(api_key.value, "secret_key_456");
+
+        // Body: Raw
+        assert_eq!(interpolated.body.raw.unwrap(), r#"{"user": "bob"}"#);
+
+        // Body: FormData
+        let form_data = interpolated.body.form_data.unwrap();
+        assert_eq!(form_data[0].key, "field_prod");
+        assert_eq!(form_data[0].value, "form_data_value");
+        assert_eq!(form_data[1].value, "{{disabled_val}}");
+
+        // Body: UrlEncoded
+        let url_encoded = interpolated.body.url_encoded.unwrap();
+        assert_eq!(url_encoded[0].key, "url_prod");
+        assert_eq!(url_encoded[0].value, "url_encoded_value");
+        assert_eq!(url_encoded[1].value, "{{disabled_url_val}}");
+    }
 }
