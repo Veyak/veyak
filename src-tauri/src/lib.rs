@@ -32,7 +32,9 @@ use crate::commands::graphql;
 use crate::commands::grpc;
 
 use crate::commands::fonts;
-use crate::commands::history::{clear_history, delete_history_entry, list_history};
+use crate::commands::history::{
+    clear_history, clear_request_history, delete_history_entry, list_history, list_request_history,
+};
 use crate::commands::import_export;
 
 mod commands;
@@ -262,7 +264,9 @@ pub fn run() {
             // History commands
             // add_entry,
             list_history,
+            list_request_history,
             clear_history,
+            clear_request_history,
             delete_history_entry,
             //auth
             auth::get_current_user,

@@ -1,6 +1,6 @@
 use veyak_db::{new_id, now_iso, read_yaml_vec, write_yaml, DataDir};
 use veyak_error::AppResult;
-use veyak_models::{HistoryEntry, HttpMethod};
+use veyak_models::{ApiResponse, HistoryEntry, HttpMethod};
 
 pub fn add_entry(
     dd: &DataDir,
@@ -11,7 +11,7 @@ pub fn add_entry(
     status: u16,
     duration_ms: u128,
     _request_snapshot: Option<&str>,
-    _response_snapshot: Option<&str>,
+    response: Option<ApiResponse>,
 ) -> AppResult<HistoryEntry> {
     let entry = HistoryEntry {
         id: new_id(),
@@ -22,6 +22,7 @@ pub fn add_entry(
         status,
         duration_ms: duration_ms as i64,
         created_at: now_iso(),
+        response,
     };
 
     let mut entries: Vec<HistoryEntry> = read_yaml_vec(&dd.history_path())?;
@@ -37,9 +38,28 @@ pub fn list_history(dd: &DataDir, limit: i64) -> AppResult<Vec<HistoryEntry>> {
     Ok(entries.into_iter().take(limit as usize).collect())
 }
 
+pub fn list_request_history(
+    dd: &DataDir,
+    request_id: &str,
+    limit: i64,
+) -> AppResult<Vec<HistoryEntry>> {
+    let entries: Vec<HistoryEntry> = read_yaml_vec(&dd.history_path())?;
+    Ok(entries
+        .into_iter()
+        .filter(|e| e.request_id.as_deref() == Some(request_id))
+        .take(limit as usize)
+        .collect())
+}
+
 pub fn clear_history(dd: &DataDir) -> AppResult<()> {
     let empty: Vec<HistoryEntry> = Vec::new();
     write_yaml(&dd.history_path(), &empty)
+}
+
+pub fn clear_request_history(dd: &DataDir, request_id: &str) -> AppResult<()> {
+    let mut entries: Vec<HistoryEntry> = read_yaml_vec(&dd.history_path())?;
+    entries.retain(|entry| entry.request_id.as_deref() != Some(request_id));
+    write_yaml(&dd.history_path(), &entries)
 }
 
 pub fn delete_entry(dd: &DataDir, entry_id: &str) -> AppResult<()> {

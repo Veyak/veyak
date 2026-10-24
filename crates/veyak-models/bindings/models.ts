@@ -204,7 +204,7 @@ export type GrpcStreamEvent = { connectionId: string, direction: string, message
 
 export type GrpcStreamType = "unary" | "server_stream" | "client_stream" | "bidi_stream";
 
-export type HistoryEntry = { id: string, requestId: string | null, name: string | null, method: HttpMethod, url: string, status: number, durationMs: bigint, createdAt: string, };
+export type HistoryEntry = { id: string, requestId: string | null, name: string | null, method: HttpMethod, url: string, status: number, durationMs: bigint, createdAt: string, response?: ApiResponse | null, };
 
 export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "OPTIONS" | "HEAD" | "WS" | "QUERY";
 

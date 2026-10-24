@@ -481,6 +481,8 @@ pub struct HistoryEntry {
     pub status: u16,
     pub duration_ms: i64,
     pub created_at: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub response: Option<ApiResponse>,
 }
 
 // ---------------------------------------------------------------------

@@ -1,7 +1,8 @@
 import { useState, useMemo } from "react";
-import { AlertCircle, CheckCircle2, XCircle, Terminal, Sparkles } from "lucide-react";
+import { AlertCircle, CheckCircle2, XCircle, Terminal, Sparkles, Clock, RotateCcw } from "lucide-react";
 import CodeEditor from "../../CodeEditor";
 import ResponseMetricsBar from "./ResponseMetricsBar";
+import ResponseHistoryTab from "./ResponseHistoryTab";
 import { RequestTab } from "../../../types";
 import { CookieRow } from "@veyak-internal/models";
 import { useVartaStore } from "../../../store/vartaStore";
@@ -11,7 +12,7 @@ interface StaticResponseViewerProps {
   isMobile?: boolean;
 }
 
-type SubTab = "body" | "headers" | "cookies" | "scripts";
+type SubTab = "body" | "headers" | "cookies" | "scripts" | "history";
 
 export default function StaticResponseViewer({
   tab,
@@ -25,12 +26,32 @@ export default function StaticResponseViewer({
   const grpcResponseStatus = useVartaStore((s) => s.grpcResponseStatus);
   const grpcLastLatency = useVartaStore((s) => s.grpcLastLatencyMs);
   const grpcMessages = useVartaStore((s) => s.grpcMessages);
+  const historyEntries = useVartaStore((s) => s.historyEntries);
+  const deleteHistoryEntry = useVartaStore((s) => s.deleteHistoryEntry);
+  const clearRequestHistory = useVartaStore((s) => s.clearRequestHistory);
+  const setActiveHistoryId = useVartaStore((s) => s.setActiveHistoryId);
+
+  // Per-request response history
+  const requestHistory = useMemo(() => {
+    return historyEntries.filter((h) => h.requestId === tab.request.id);
+  }, [historyEntries, tab.request.id]);
+
+  // Active historical entry if user selected one
+  const activeHistoryEntry = useMemo(() => {
+    if (tab.activeHistoryId) {
+      return requestHistory.find((h) => h.id === tab.activeHistoryId) ?? null;
+    }
+    if (!tab.response && requestHistory.length > 0) {
+      return requestHistory[0];
+    }
+    return null;
+  }, [tab.activeHistoryId, tab.response, requestHistory]);
 
   const isGrpc = tab.request.type === "grpc";
   const isGraphQl = tab.request.type === "graphql";
 
-  // Data extraction per protocol
-  const httpResponse = tab.response;
+  // Data extraction per protocol - use active historical response if viewing history, else live tab response
+  const httpResponse = activeHistoryEntry?.response ?? tab.response;
   const gqlResponse = tab.graphqlResponse;
 
   // Derive status, metrics, headers, cookies, body
@@ -176,6 +197,13 @@ export default function StaticResponseViewer({
     });
   }
 
+  // Response History tab
+  subTabs.push({
+    id: "history",
+    label: "History",
+    count: requestHistory.length > 0 ? requestHistory.length : undefined,
+  });
+
   return (
     <div className="flex h-full flex-col min-w-0 bg-bg">
       {/* Universal Metrics Bar */}
@@ -192,7 +220,43 @@ export default function StaticResponseViewer({
         isCopied={copied}
         onDownload={formattedBody ? handleDownload : undefined}
         isMobile={isMobile}
+        historyEntries={requestHistory}
+        activeHistoryId={activeHistoryEntry?.id}
+        onSelectHistoryEntry={(entry) => setActiveHistoryId(tab.id, entry.id)}
+        onRestoreLatestHistory={() => setActiveHistoryId(tab.id, null)}
       />
+
+      {/* Historical Response Notice Banner */}
+      {activeHistoryEntry && activeSubTab !== "history" && (
+        <div className="flex items-center justify-between border-b border-primary/25 bg-primary/10 px-4 py-1.5 text-xs text-text-primary animate-in fade-in duration-100 shrink-0">
+          <div className="flex items-center gap-2">
+            <Clock size={12} className="text-primary shrink-0" />
+            <span>
+              Viewing historical response from{" "}
+              <strong className="text-primary font-medium">
+                {new Date(activeHistoryEntry.createdAt).toLocaleString()}
+              </strong>
+            </span>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setActiveSubTab("history")}
+              className="text-[11px] text-text-muted hover:text-text-primary cursor-pointer hover:underline"
+            >
+              All Runs ({requestHistory.length})
+            </button>
+            {tab.response && (
+              <button
+                onClick={() => setActiveHistoryId(tab.id, null)}
+                className="flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline cursor-pointer"
+              >
+                <RotateCcw size={11} />
+                <span>Restore Latest</span>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Subtabs Bar */}
       <div
@@ -444,6 +508,31 @@ export default function StaticResponseViewer({
                 </div>
               )}
           </div>
+        )}
+
+        {/* Response History Viewer */}
+        {activeSubTab === "history" && (
+          <ResponseHistoryTab
+            entries={requestHistory}
+            activeHistoryId={activeHistoryEntry?.id}
+            onSelectEntry={(entry) => {
+              setActiveHistoryId(tab.id, entry.id);
+              setActiveSubTab("body");
+            }}
+            onRestoreLatest={() => setActiveHistoryId(tab.id, null)}
+            onDeleteEntry={(id) => {
+              deleteHistoryEntry(id);
+              if (tab.activeHistoryId === id) {
+                setActiveHistoryId(tab.id, null);
+              }
+            }}
+            onClearHistory={() => {
+              clearRequestHistory(tab.request.id);
+              setActiveHistoryId(tab.id, null);
+            }}
+            hasLatestLiveResponse={Boolean(tab.response)}
+            isMobile={isMobile}
+          />
         )}
       </div>
     </div>
