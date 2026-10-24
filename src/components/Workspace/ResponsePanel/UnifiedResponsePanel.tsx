@@ -17,6 +17,11 @@ export default function UnifiedResponsePanel({
   const grpcCallStatus = useVartaStore((s) => s.grpcCallStatus);
   const grpcMessages = useVartaStore((s) => s.grpcMessages);
   const grpcSelectedMethod = useVartaStore((s) => s.grpcSelectedMethod);
+  const historyEntries = useVartaStore((s) => s.historyEntries);
+
+  const requestHistory = useMemo(() => {
+    return historyEntries.filter((h) => h.requestId === tab.request.id);
+  }, [historyEntries, tab.request.id]);
 
   const isWs = tab.request.method === "WS";
   const isGrpc = tab.request.type === "grpc";
@@ -94,11 +99,12 @@ export default function UnifiedResponsePanel({
     return <StreamingTimelineViewer tab={tab} isMobile={isMobile} />;
   }
 
-  // Empty state for Static mode if no response has been received yet
+  // Empty state for Static mode if no response has been received yet and no history exists
   const hasStaticResponse =
     (tab.response && (tab.response.status > 0 || tab.response.body)) ||
     tab.graphqlResponse ||
-    (isGrpc && grpcMessages.length > 0);
+    (isGrpc && grpcMessages.length > 0) ||
+    requestHistory.length > 0;
 
   if (!hasStaticResponse) {
     return (

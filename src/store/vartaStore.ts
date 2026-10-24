@@ -73,6 +73,8 @@ interface VartaState {
   fetchHistory: () => Promise<void>;
   deleteHistoryEntry: (id: string) => Promise<void>;
   clearHistory: () => Promise<void>;
+  clearRequestHistory: (requestId: string) => Promise<void>;
+  setActiveHistoryId: (tabId: string, historyId: string | null) => void;
 
   // ── gRPC state ────────────────────────────────────────────────────────
   // grpcServerAddress: string;
@@ -315,7 +317,13 @@ export const useVartaStore = create<VartaState>((set, get) => ({
         set((s) => {
           const updatedTabs = s.tabs.map((t) =>
             t.id === activeTabId
-              ? { ...t, isSending: false, response: res, error: undefined }
+              ? {
+                  ...t,
+                  isSending: false,
+                  response: res,
+                  error: undefined,
+                  activeHistoryId: null,
+                }
               : t,
           );
           return {
@@ -701,6 +709,31 @@ export const useVartaStore = create<VartaState>((set, get) => ({
     } catch (error) {
       console.error("Failed to delete history entry:", error);
     }
+  },
+
+  clearRequestHistory: async (requestId: string) => {
+    try {
+      await invoke("clear_request_history", { requestId });
+      set((state) => ({
+        historyEntries: state.historyEntries.filter(
+          (entry) => entry.requestId !== requestId,
+        ),
+      }));
+    } catch (error) {
+      console.error("Failed to clear request history:", error);
+    }
+  },
+
+  setActiveHistoryId: (tabId: string, historyId: string | null) => {
+    set((s) => {
+      const nextTabs = s.tabs.map((t) =>
+        t.id === tabId ? { ...t, activeHistoryId: historyId } : t,
+      );
+      return {
+        tabs: nextTabs,
+        activeTab: nextTabs.find((t) => t.id === s.activeTabId) || null,
+      };
+    });
   },
 
   // ── gRPC action implementations ──────────────────────────────────────

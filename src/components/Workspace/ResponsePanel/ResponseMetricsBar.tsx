@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, useRef, useEffect, type ReactNode } from "react";
 import {
   Copy,
   Check,
@@ -9,7 +9,10 @@ import {
   Square,
   Clock,
   Search,
+  ChevronDown,
+  RotateCcw,
 } from "lucide-react";
+import { HistoryEntry } from "@veyak-internal/models";
 
 export interface ResponseMetricsBarProps {
   statusText?: string;
@@ -33,6 +36,10 @@ export interface ResponseMetricsBarProps {
   showFilter?: boolean;
   isMobile?: boolean;
   extraActions?: ReactNode;
+  historyEntries?: HistoryEntry[];
+  activeHistoryId?: string | null;
+  onSelectHistoryEntry?: (entry: HistoryEntry) => void;
+  onRestoreLatestHistory?: () => void;
 }
 
 export function formatBytes(bytes?: number | bigint | null): string {
@@ -65,8 +72,29 @@ export default function ResponseMetricsBar({
   showFilter = false,
   isMobile = false,
   extraActions,
+  historyEntries,
+  activeHistoryId,
+  onSelectHistoryEntry,
+  onRestoreLatestHistory,
 }: ResponseMetricsBarProps) {
   const sizeFormatted = formatBytes(sizeBytes);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const historyDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (
+        historyDropdownRef.current &&
+        !historyDropdownRef.current.contains(e.target as Node)
+      ) {
+        setIsHistoryOpen(false);
+      }
+    }
+    if (isHistoryOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [isHistoryOpen]);
 
   return (
     <div
@@ -115,6 +143,97 @@ export default function ResponseMetricsBar({
         <span className="text-xs text-text-muted">
           {itemCount} {itemLabel}
         </span>
+      )}
+
+      {/* Response History Selector Dropdown */}
+      {historyEntries && historyEntries.length > 0 && (
+        <div className="relative" ref={historyDropdownRef}>
+          <button
+            onClick={() => setIsHistoryOpen(!isHistoryOpen)}
+            className={`flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-medium border transition-colors cursor-pointer ${
+              activeHistoryId
+                ? "bg-primary/15 text-primary border-primary/30"
+                : "border-border bg-panel-raised hover:bg-borderMuted text-text-secondary hover:text-text-primary"
+            }`}
+            title="Switch between past responses for this request"
+          >
+            <Clock
+              size={12}
+              className={activeHistoryId ? "text-primary" : "text-text-muted"}
+            />
+            <span>
+              {activeHistoryId
+                ? "Viewing Historical"
+                : `History (${historyEntries.length})`}
+            </span>
+            <ChevronDown
+              size={11}
+              className={`transition-transform duration-150 ${
+                isHistoryOpen ? "rotate-180" : ""
+              }`}
+            />
+          </button>
+
+          {isHistoryOpen && (
+            <div className="absolute left-0 top-full mt-1.5 z-50 w-72 rounded-xl border border-border bg-panel-raised shadow-elevated overflow-hidden py-1 animate-in fade-in zoom-in-95 duration-100">
+              <div className="px-3 py-1.5 border-b border-border/70 bg-panel flex items-center justify-between text-[11px] font-semibold text-text-muted uppercase tracking-wider">
+                <span>Response Runs</span>
+                {activeHistoryId && onRestoreLatestHistory && (
+                  <button
+                    onClick={() => {
+                      onRestoreLatestHistory();
+                      setIsHistoryOpen(false);
+                    }}
+                    className="text-primary hover:underline lowercase font-normal cursor-pointer flex items-center gap-1"
+                  >
+                    <RotateCcw size={10} />
+                    latest
+                  </button>
+                )}
+              </div>
+              <div className="max-h-60 overflow-y-auto p-1 space-y-0.5 bg-panel-raised">
+                {historyEntries.map((h, idx) => {
+                  const isCurrent =
+                    activeHistoryId === h.id || (!activeHistoryId && idx === 0);
+                  const isSuccess = h.status >= 200 && h.status < 300;
+                  return (
+                    <button
+                      key={h.id}
+                      onClick={() => {
+                        onSelectHistoryEntry?.(h);
+                        setIsHistoryOpen(false);
+                      }}
+                      className={`flex w-full items-center justify-between px-2.5 py-1.5 rounded-lg text-left text-xs transition-colors cursor-pointer ${
+                        isCurrent
+                          ? "bg-primary/20 text-text-primary font-medium"
+                          : "hover:bg-panel text-text-secondary hover:text-text-primary"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`font-mono text-[11px] font-bold ${
+                            isSuccess ? "text-success" : "text-error"
+                          }`}
+                        >
+                          {h.status}
+                        </span>
+                        <span className="text-[11px] font-mono text-text-muted">
+                          {Number(h.durationMs)}ms
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-text-muted font-mono">
+                        {new Date(h.createdAt).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
       )}
 
       {/* Filter search bar if enabled */}

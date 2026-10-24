@@ -91,7 +91,7 @@ pub async fn graphql_execute(
         serde_json::from_str::<serde_json::Value>(&request.variables).ok()
     };
 
-    execute_graphql(
+    let res = execute_graphql(
         &request.url,
         &request.query,
         variables,
@@ -100,7 +100,32 @@ pub async fn graphql_execute(
         settings.verify_ssl_certificates,
         settings.timeout_ms,
     )
-    .await
+    .await?;
+
+    let _ = crate::db::history::add_entry(
+        &state.data_dir,
+        Some(&request.id),
+        veyak_models::HttpMethod::Post,
+        Some(&request.name),
+        &request.url,
+        res.status,
+        res.time_ms as u128,
+        None,
+        Some(veyak_models::ApiResponse {
+            status: res.status,
+            status_text: res.status_text.clone(),
+            time_ms: res.time_ms,
+            size_bytes: res.size_bytes,
+            headers: res.headers.clone(),
+            cookies: Vec::new(),
+            body: res.data.clone().or_else(|| res.errors.clone()).unwrap_or_default(),
+            console_output: None,
+            test_results: None,
+            env_updates: None,
+        }),
+    );
+
+    Ok(res)
 }
 
 /// Start a `graphql-ws` subscription.

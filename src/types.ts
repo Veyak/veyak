@@ -48,6 +48,7 @@ export interface RequestTab {
   request: RequestItem;
   isDirty: boolean;
   response?: ApiResponse;
+  activeHistoryId?: string | null;
   isSending: boolean;
   error?: string;
   // WebSocket state

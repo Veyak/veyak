@@ -182,7 +182,7 @@ pub async fn send_request(
         api_response.status,
         elapsed.as_millis(),
         None,
-        None,
+        Some(api_response.clone()),
     )?;
 
     Ok(api_response)
