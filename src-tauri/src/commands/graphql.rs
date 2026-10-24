@@ -118,7 +118,11 @@ pub async fn graphql_execute(
             size_bytes: res.size_bytes,
             headers: res.headers.clone(),
             cookies: Vec::new(),
-            body: res.data.clone().or_else(|| res.errors.clone()).unwrap_or_default(),
+            body: res
+                .data
+                .clone()
+                .or_else(|| res.errors.clone())
+                .unwrap_or_default(),
             console_output: None,
             test_results: None,
             env_updates: None,
