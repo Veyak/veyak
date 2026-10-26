@@ -1,7 +1,7 @@
 [package]
 name = "veyak"
 version = "0.8.0"
-description = "A Tauri App"
+description = "Blazing-fast, native, offline-first multi-protocol API studio"
 authors = ["Hrithik Dhakrey <dhakreyhrithik@gmail.com>"]
 edition = "2021"
 
