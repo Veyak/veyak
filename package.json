@@ -2,7 +2,7 @@
   "name": "Veyak",
   "description": "Blazing-fast, native, offline-first multi-protocol API studio built with Rust and Tauri 2",
   "private": true,
-  "version": "0.8.0",
+  "version": "0.8.1",
   "type": "module",
   "scripts": {
     "dev": "vite",

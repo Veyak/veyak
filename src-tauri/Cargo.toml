@@ -1,6 +1,6 @@
 [package]
 name = "veyak"
-version = "0.8.0"
+version = "0.8.1"
 description = "Blazing-fast, native, offline-first multi-protocol API studio"
 authors = ["Hrithik Dhakrey <dhakreyhrithik@gmail.com>"]
 edition = "2021"
