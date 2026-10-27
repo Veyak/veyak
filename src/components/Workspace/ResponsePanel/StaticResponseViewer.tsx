@@ -6,6 +6,7 @@ import ResponseHistoryTab from "./ResponseHistoryTab";
 import { RequestTab } from "../../../types";
 import { CookieRow } from "@veyak-internal/models";
 import { useVartaStore } from "../../../store/vartaStore";
+import { saveTextFile } from "../../../services/fileSaver";
 
 interface StaticResponseViewerProps {
   tab: RequestTab;
@@ -21,6 +22,7 @@ export default function StaticResponseViewer({
   const [activeSubTab, setActiveSubTab] = useState<SubTab>("body");
   const [pretty, setPretty] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [downloaded, setDownloaded] = useState(false);
 
   const grpcResponseMetadata = useVartaStore((s) => s.grpcResponseMetadata);
   const grpcResponseStatus = useVartaStore((s) => s.grpcResponseStatus);
@@ -144,9 +146,52 @@ export default function StaticResponseViewer({
     }
   }, [rawBody, pretty]);
 
+  // Downloadable content (body, errors, or raw payload)
+  const downloadableContent = useMemo(() => {
+    return formattedBody || gqlErrors || rawBody || "";
+  }, [formattedBody, gqlErrors, rawBody]);
+
+  // Determine file extension and MIME type from Content-Type header or content
+  const { suggestedExtension, mimeType } = useMemo(() => {
+    const ctHeader =
+      Object.entries(headers).find(
+        ([k]) => k.toLowerCase() === "content-type",
+      )?.[1]?.toLowerCase() || "";
+
+    if (ctHeader.includes("json") || isGraphQl) {
+      return { suggestedExtension: "json", mimeType: "application/json" };
+    }
+    if (ctHeader.includes("html")) {
+      return { suggestedExtension: "html", mimeType: "text/html" };
+    }
+    if (ctHeader.includes("xml")) {
+      return { suggestedExtension: "xml", mimeType: "application/xml" };
+    }
+    if (ctHeader.includes("csv")) {
+      return { suggestedExtension: "csv", mimeType: "text/csv" };
+    }
+    if (ctHeader.includes("javascript")) {
+      return { suggestedExtension: "js", mimeType: "application/javascript" };
+    }
+    if (ctHeader.includes("text/plain")) {
+      return { suggestedExtension: "txt", mimeType: "text/plain" };
+    }
+
+    if (rawBody) {
+      try {
+        JSON.parse(rawBody);
+        return { suggestedExtension: "json", mimeType: "application/json" };
+      } catch {
+        // Not JSON
+      }
+    }
+
+    return { suggestedExtension: "json", mimeType: "application/json" };
+  }, [headers, isGraphQl, rawBody]);
+
   // Handle Copy
   const handleCopy = async () => {
-    const textToCopy = formattedBody || gqlErrors || "";
+    const textToCopy = downloadableContent;
     if (!textToCopy) return;
     await navigator.clipboard.writeText(textToCopy);
     setCopied(true);
@@ -154,16 +199,39 @@ export default function StaticResponseViewer({
   };
 
   // Handle Download / Export
-  const handleDownload = () => {
-    const textToDownload = formattedBody || gqlErrors || "";
-    if (!textToDownload) return;
-    const blob = new Blob([textToDownload], { type: "application/json" });
-    const fileUrl = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = fileUrl;
-    link.download = `response-${Date.now()}.json`;
-    link.click();
-    URL.revokeObjectURL(fileUrl);
+  const handleDownload = async () => {
+    if (!downloadableContent) return;
+
+    const baseName = tab.request.name
+      ? tab.request.name.replace(/[^a-zA-Z0-9_-]/g, "_").toLowerCase()
+      : "response";
+    const defaultFilename = `${baseName}-${Date.now()}.${suggestedExtension}`;
+
+    const filterName =
+      suggestedExtension === "json"
+        ? "JSON File"
+        : suggestedExtension === "html"
+          ? "HTML File"
+          : suggestedExtension === "xml"
+            ? "XML File"
+            : suggestedExtension === "csv"
+              ? "CSV File"
+              : "Text File";
+
+    const success = await saveTextFile({
+      content: downloadableContent,
+      defaultPath: defaultFilename,
+      filters: [
+        { name: filterName, extensions: [suggestedExtension] },
+        { name: "All Files", extensions: ["*"] },
+      ],
+      mimeType,
+    });
+
+    if (success) {
+      setDownloaded(true);
+      setTimeout(() => setDownloaded(false), 1500);
+    }
   };
 
   const headerEntries = Object.entries(headers);
@@ -216,9 +284,10 @@ export default function StaticResponseViewer({
         showPretty={activeSubTab === "body" && !!formattedBody}
         pretty={pretty}
         onTogglePretty={() => setPretty((p) => !p)}
-        onCopy={formattedBody ? handleCopy : undefined}
+        onCopy={downloadableContent ? handleCopy : undefined}
         isCopied={copied}
-        onDownload={formattedBody ? handleDownload : undefined}
+        onDownload={downloadableContent ? handleDownload : undefined}
+        isDownloaded={downloaded}
         isMobile={isMobile}
         historyEntries={requestHistory}
         activeHistoryId={activeHistoryEntry?.id}

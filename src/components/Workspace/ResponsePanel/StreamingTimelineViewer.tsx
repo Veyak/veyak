@@ -17,6 +17,7 @@ import { RequestTab } from "../../../types";
 import { useVartaStore } from "../../../store/vartaStore";
 import ResponseMetricsBar from "./ResponseMetricsBar";
 import CodeEditor from "../../CodeEditor";
+import { saveTextFile } from "../../../services/fileSaver";
 
 interface StreamingTimelineViewerProps {
   tab: RequestTab;
@@ -51,6 +52,7 @@ export default function StreamingTimelineViewer({
   const [searchQuery, setSearchQuery] = useState("");
   const [errorOnly, setErrorOnly] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [downloaded, setDownloaded] = useState(false);
 
   // Quick Composer State for WebSocket
   const [wsComposerText, setWsComposerText] = useState("");
@@ -237,6 +239,31 @@ export default function StreamingTimelineViewer({
     setWsComposerText("");
   };
 
+  // Download all timeline frames
+  const handleDownloadTimeline = async () => {
+    if (timelineItems.length === 0) return;
+    const content = JSON.stringify(timelineItems, null, 2);
+    const baseName = tab.request.name
+      ? tab.request.name.replace(/[^a-zA-Z0-9_-]/g, "_").toLowerCase()
+      : "stream-timeline";
+    const defaultFilename = `${baseName}-${Date.now()}.json`;
+
+    const success = await saveTextFile({
+      content,
+      defaultPath: defaultFilename,
+      filters: [
+        { name: "JSON File", extensions: ["json"] },
+        { name: "All Files", extensions: ["*"] },
+      ],
+      mimeType: "application/json",
+    });
+
+    if (success) {
+      setDownloaded(true);
+      setTimeout(() => setDownloaded(false), 1500);
+    }
+  };
+
   return (
     <div className="flex h-full flex-col min-w-0 bg-bg">
       {/* Universal Metrics Bar */}
@@ -248,6 +275,8 @@ export default function StreamingTimelineViewer({
         isStreaming={isStreaming}
         onStopStream={handleStopStream}
         onClear={timelineItems.length > 0 ? handleClear : undefined}
+        onDownload={timelineItems.length > 0 ? handleDownloadTimeline : undefined}
+        isDownloaded={downloaded}
         isMobile={isMobile}
       />
 

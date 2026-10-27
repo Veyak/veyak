@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useWorkspaceStore } from "../store/workspaceStore";
 import { ExportFormat } from "@veyak-internal/models";
+import { saveTextFile } from "../services/fileSaver";
 
 interface ExportModalProps {
   isMobile?: boolean;
@@ -232,7 +233,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
     }
   };
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (!exportedContent) return;
     try {
       let baseName = "export";
@@ -253,15 +254,22 @@ export const ExportModal: React.FC<ExportModalProps> = ({
       }
 
       const fileName = `${baseName}.${currentFormatMeta.extension}`;
-      const blob = new Blob([exportedContent], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      await saveTextFile({
+        content: exportedContent,
+        defaultPath: fileName,
+        filters: [
+          {
+            name: currentFormatMeta.label,
+            extensions: [currentFormatMeta.extension],
+          },
+          { name: "All Files", extensions: ["*"] },
+        ],
+        mimeType:
+          currentFormatMeta.extension === "yaml" ||
+          currentFormatMeta.extension === "yml"
+            ? "text/yaml"
+            : "application/json",
+      });
     } catch (err) {
       console.error("Failed to download file:", err);
     }

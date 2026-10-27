@@ -31,6 +31,7 @@ export interface ResponseMetricsBarProps {
   pretty?: boolean;
   onTogglePretty?: () => void;
   onDownload?: () => void;
+  isDownloaded?: boolean;
   filterText?: string;
   onFilterChange?: (text: string) => void;
   showFilter?: boolean;
@@ -67,6 +68,7 @@ export default function ResponseMetricsBar({
   pretty = true,
   onTogglePretty,
   onDownload,
+  isDownloaded = false,
   filterText,
   onFilterChange,
   showFilter = false,
@@ -297,10 +299,10 @@ export default function ResponseMetricsBar({
           <button
             onClick={onDownload}
             className="flex items-center gap-1 rounded-md border border-border p-1.5 text-text-secondary hover:bg-panel-raised hover:text-text-primary transition-colors cursor-pointer"
-            title="Export response"
+            title={isDownloaded ? "Saved!" : "Export response"}
             aria-label="Download response"
           >
-            <Download size={13} />
+            {isDownloaded ? <Check size={13} className="text-success" /> : <Download size={13} />}
           </button>
         )}
 

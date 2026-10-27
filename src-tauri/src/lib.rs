@@ -303,6 +303,7 @@ pub fn run() {
             import_export::export_collection,
             import_export::export_workspace,
             import_export::export_environment,
+            import_export::save_file_to_disk,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Veyak application");
