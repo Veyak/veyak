@@ -21,6 +21,7 @@
     "oauth:allow-start",
     "oauth:allow-cancel",
     "dialog:allow-open",
+    "dialog:allow-save",
     "log:default",
     "deep-link:default",
     "deep-link:allow-get-current",

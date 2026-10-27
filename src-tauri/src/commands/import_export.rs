@@ -73,3 +73,15 @@ pub async fn export_environment(
 ) -> AppResult<String> {
     veyak_import_export::export_environment(&state.data_dir, &workspaceid, &environmentid, format)
 }
+
+#[tauri::command]
+pub async fn save_file_to_disk(file_path: String, content: String) -> AppResult<()> {
+    let path = std::path::Path::new(&file_path);
+    if let Some(parent) = path.parent() {
+        if !parent.as_os_str().is_empty() {
+            std::fs::create_dir_all(parent)?;
+        }
+    }
+    std::fs::write(path, content.as_bytes())?;
+    Ok(())
+}
